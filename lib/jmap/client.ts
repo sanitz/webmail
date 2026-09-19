@@ -9,7 +9,7 @@ import { FirstTouchGate } from "./first-touch-gate";
 import { debug } from "@/lib/debug";
 import { normalizeCalendarEventLike } from "@/lib/calendar-event-normalization";
 import { SYNTHETIC_ID_PROBE, RECURRENCE_BASE_PROPERTIES, hydrateRecurrenceInstances, isServerRecurrenceInstance } from "@/lib/recurrence-instances";
-import { isTaskLikeObject, type ScannedCalendarObject } from "@/lib/calendar-component-detection";
+import { isTaskLikeObject, isTasksOnlyCalendarName, type ScannedCalendarObject } from "@/lib/calendar-component-detection";
 import { DEFAULT_CALENDAR_COMPONENTS, mkCalendarCollection, newCalendarCollectionName } from "@/lib/webdav/calendar-collection";
 import { sanitizeDisplayName, splitMailbox } from "@/lib/rfc5322-mailbox";
 import { decodeFileNodeName } from "./filenode-name";
@@ -6508,7 +6508,7 @@ export class JMAPClient implements IJMAPClient {
 
       if (response.methodResponses?.[0]?.[0] === "Calendar/get") {
         const calendars = (response.methodResponses[0][1].list || []) as Calendar[];
-        const tasksOnly = await this.getTasksOnlyCalendarIds(accountId, calendars.map((c) => c.id));
+        const tasksOnly = await this.getTasksOnlyCalendarIds(accountId, calendars);
         return calendars.map((cal) => ({ ...cal, isTasksOnly: tasksOnly.has(cal.id) }));
       }
       return [];
@@ -6531,8 +6531,25 @@ export class JMAPClient implements IJMAPClient {
    * by maxObjectsInGet. Past the per-calendar cap, on a failed query or on any
    * error the calendar is left visible (fail open). Empty calendars stay visible.
    */
-  private async getTasksOnlyCalendarIds(accountId: string, rawCalendarIds: string[]): Promise<Set<string>> {
-    if (rawCalendarIds.length === 0) return new Set();
+  private async getTasksOnlyCalendarIds(accountId: string, calendars: Calendar[] | string[]): Promise<Set<string>> {
+    if (calendars.length === 0) return new Set();
+
+    const normalizedCalendars: { id: string; name?: string | null }[] = calendars.map((c) =>
+      typeof c === 'string' ? { id: c } : { id: c.id, name: c.name }
+    );
+
+    const tasksOnly = new Set<string>();
+    const calendarsToScan: string[] = [];
+
+    for (const cal of normalizedCalendars) {
+      if (isTasksOnlyCalendarName(cal.name)) {
+        tasksOnly.add(cal.id);
+      } else {
+        calendarsToScan.push(cal.id);
+      }
+    }
+
+    if (calendarsToScan.length === 0) return tasksOnly;
 
     const QUERY_PAGE = 200;
     const MAX_SCAN_PER_CALENDAR = 5000; // safety bound; beyond this we fail open
@@ -6605,7 +6622,7 @@ export class JMAPClient implements IJMAPClient {
 
       return tasksOnly;
     } catch {
-      return new Set(); // fail open
+      return tasksOnly; // preserve name-detected task calendars
     }
   }
 
@@ -6649,7 +6666,7 @@ export class JMAPClient implements IJMAPClient {
         }
 
         const rawCalendars = (result.list || []) as Calendar[];
-        const tasksOnly = await this.getTasksOnlyCalendarIds(accountId, rawCalendars.map((c) => c.id));
+        const tasksOnly = await this.getTasksOnlyCalendarIds(accountId, rawCalendars);
         const calendars = rawCalendars.map((cal) => ({
           ...cal,
           id: isPrimary ? cal.id : `${accountId}:${cal.id}`,
@@ -7753,6 +7770,7 @@ export class JMAPClient implements IJMAPClient {
       }
 
       const tasks: CalendarTask[] = [];
+      const hasCalendarFilter = Boolean(calendarIds && calendarIds.length > 0);
       for (const obj of allObjects) {
         const type = obj['@type'];
         const isExplicitTask = typeof type === 'string' && type.toLowerCase() === 'task';
@@ -7768,7 +7786,7 @@ export class JMAPClient implements IJMAPClient {
           || ('percentComplete' in obj);
         const isCalDavTask = type !== 'Event' && hasTaskFields;
 
-        if (!isExplicitTask && !isCalDavTask) continue;
+        if (!isExplicitTask && !isCalDavTask && !hasCalendarFilter) continue;
 
         tasks.push(normalizeCalendarTask({ ...obj, '@type': 'Task' as const } as CalendarTask));
       }
