@@ -1,0 +1,41 @@
+name: Build & Push
+
+# Trigger manually only (disabled on push to protect Lion gateway from I/O starvation)
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: podman
+    # Mount host podman socket (whitelisted in podman_runner valid_volumes) to build
+    # natively with host OverlayFS instead of unprivileged nested VFS (#1154, #1168).
+    container:
+      image: quay.io/podman/stable:v5
+      volumes:
+        - /run/user/1000/podman/podman.sock:/run/podman/podman.sock
+    steps:
+      - name: Checkout
+        env:
+          TOKEN: ${{ github.token }}
+          SERVER_URL: ${{ github.server_url }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          git clone "http://forgejo-actions-token:${TOKEN}@${SERVER_URL#*://}/${REPO}" .
+          git checkout "${SHA}"
+
+      - name: Build and push
+        env:
+          REGISTRY_TOKEN: ${{ secrets.FJ_REGISTRY_TOKEN }}
+          SHA: ${{ github.sha }}
+          CONTAINER_HOST: unix:///run/podman/podman.sock
+        run: |
+          podman info
+          echo "$REGISTRY_TOKEN" | podman login -u sebastian --password-stdin git.sanitz.net
+          podman build \
+            --network=host \
+            -t git.sanitz.net/sebastian/bulwark-webmail-fork:1.10.0-ical-sync \
+            -t git.sanitz.net/sebastian/bulwark-webmail-fork:${SHA} \
+            .
+          podman push git.sanitz.net/sebastian/bulwark-webmail-fork:1.10.0-ical-sync
+          podman push git.sanitz.net/sebastian/bulwark-webmail-fork:${SHA}
