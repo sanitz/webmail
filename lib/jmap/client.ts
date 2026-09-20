@@ -13,8 +13,8 @@ import { FirstTouchGate } from "./first-touch-gate";
 import { debug } from "@/lib/debug";
 import { normalizeCalendarEventLike, parseDurationSeconds } from "@/lib/calendar-event-normalization";
 import { SYNTHETIC_ID_PROBE, RECURRENCE_BASE_PROPERTIES, hydrateRecurrenceInstances, isServerRecurrenceInstance } from "@/lib/recurrence-instances";
-import { isTaskLikeObject, isTasksOnlyCalendarName, type ScannedCalendarObject } from "@/lib/calendar-component-detection";
-import { DEFAULT_CALENDAR_COMPONENTS, mkCalendarCollection, newCalendarCollectionName } from "@/lib/webdav/calendar-collection";
+import { isTaskLikeObject, type ScannedCalendarObject } from "@/lib/calendar-component-detection";
+import { DEFAULT_CALENDAR_COMPONENTS, mkCalendarCollection, newCalendarCollectionName, fetchCalendarCollectionComponents } from "@/lib/webdav/calendar-collection";
 import { sanitizeDisplayName, splitMailbox } from "@/lib/rfc5322-mailbox";
 import { decodeFileNodeName } from "./filenode-name";
 import { fileNodeKind, fromDraftFileNode, toDraftFileNodeCreate } from "./filenode-kind";
@@ -8029,19 +8029,30 @@ export class JMAPClient implements IJMAPClient {
   private async getTasksOnlyCalendarIds(accountId: string, calendars: Calendar[] | string[]): Promise<Set<string>> {
     if (calendars.length === 0) return new Set();
 
-    const normalizedCalendars: { id: string; name?: string | null }[] = calendars.map((c) =>
-      typeof c === 'string' ? { id: c } : { id: c.id, name: c.name }
+    const allCalendarIds: string[] = calendars.map((c) =>
+      typeof c === 'string' ? c : c.id
     );
 
     const tasksOnly = new Set<string>();
     const calendarsToScan: string[] = [];
 
-    for (const cal of normalizedCalendars) {
-      if (isTasksOnlyCalendarName(cal.name)) {
-        tasksOnly.add(cal.id);
-      } else {
-        calendarsToScan.push(cal.id);
+    // 1. Try querying CalDAV collection component properties directly from Stalwart
+    try {
+      const davComponents = await fetchCalendarCollectionComponents();
+      for (const id of allCalendarIds) {
+        const comps = davComponents[id];
+        if (comps && comps.length > 0) {
+          if (comps.includes('VTODO') && !comps.includes('VEVENT')) {
+            tasksOnly.add(id);
+          }
+          // If collection explicitly supports VEVENT, it is not task-only
+        } else {
+          // Unknown or older collection: inspect objects
+          calendarsToScan.push(id);
+        }
       }
+    } catch {
+      calendarsToScan.push(...allCalendarIds);
     }
 
     if (calendarsToScan.length === 0) return tasksOnly;
@@ -8117,7 +8128,7 @@ export class JMAPClient implements IJMAPClient {
 
       return tasksOnly;
     } catch {
-      return tasksOnly; // preserve name-detected task calendars
+      return tasksOnly; // preserve CalDAV-detected task calendars
     }
   }
 
