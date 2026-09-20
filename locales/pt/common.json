@@ -3672,7 +3672,11 @@
       "select_view": "Mudar vista, atualmente {view}"
     },
     "other_calendars": "Outros calendários",
-    "calendar_options": "Opções de {name}"
+    "calendar_options": "Opções de {name}",
+"errors": {
+      "no_writable_calendar_for_event": "Can't save: this calendar doesn't accept events."
+    },
+    "nav_open_menu": "Abrir menu"
   },
   "advanced_search": {
     "title": "Pesquisa avançada",

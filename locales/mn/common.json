@@ -3672,7 +3672,10 @@
       "select_view": "Харагдац солих, одоо {view}"
     },
     "other_calendars": "Бусад хуанли",
-    "calendar_options": "{name}-ийн тохиргоо"
+    "calendar_options": "{name}-ийн тохиргоо",
+"errors": {
+      "no_writable_calendar_for_event": "Can't save: this calendar doesn't accept events."
+    }
   },
   "calendar_event_notifications": {
     "someone": "Хэн нэгэн",

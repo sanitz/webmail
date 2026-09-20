@@ -3672,7 +3672,11 @@
       "select_view": "Görünümü değiştir, şu an {view}"
     },
     "other_calendars": "Diğer takvimler",
-    "calendar_options": "{name} seçenekleri"
+    "calendar_options": "{name} seçenekleri",
+"errors": {
+      "no_writable_calendar_for_event": "Can't save: this calendar doesn't accept events."
+    },
+    "nav_open_menu": "Menüyü aç"
   },
   "calendar_event_notifications": {
     "someone": "Birisi",

@@ -3672,7 +3672,10 @@
       "select_view": "Bytt visning, nå {view}"
     },
     "other_calendars": "Andre kalendere",
-    "calendar_options": "Alternativer for {name}"
+    "calendar_options": "Alternativer for {name}",
+"errors": {
+      "no_writable_calendar_for_event": "Can't save: this calendar doesn't accept events."
+    }
   },
   "calendar_event_notifications": {
     "someone": "Noen",
