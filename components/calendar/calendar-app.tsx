@@ -1706,7 +1706,10 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
                 selectedTaskId={taskStore.selectedTaskId}
                 onQuickCreate={(title) => {
                   if (client) {
-                    const targetCal = calendars.find(c => c.isTasksOnly) || calendars[0];
+                    // Never target a calendar the user can't write to, e.g. a
+                    // shared read-only task list sorted before their own (#1208).
+                    const writableCalendars = calendars.filter(c => !c.isShared || c.myRights?.mayWriteAll || c.myRights?.mayWriteOwn);
+                    const targetCal = writableCalendars.find(c => c.isTasksOnly) || writableCalendars[0] || calendars[0];
                     taskStore.createTask(client, { "@type": "Task", title, progress: "needs-action", calendarIds: { [targetCal?.id ?? ""]: true } });
                   }
                 }}
