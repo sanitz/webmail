@@ -149,8 +149,9 @@ export function CalendarSidebarPanel({
   const activeLocalAccountId = useAccountStore((s) => s.activeAccountId);
 
   // Tasks-only calendars (VTODO, no events) are kept in the store for the tasks
-  // view but hidden from the event calendar list here.
+  // view and rendered in their own Task Lists section below.
   const eventCalendars = useMemo(() => calendars.filter(c => !c.isTasksOnly), [calendars]);
+  const taskCalendars = useMemo(() => calendars.filter(c => c.isTasksOnly), [calendars]);
 
   const personalCalendars = useMemo(() => eventCalendars.filter(c => !c.isShared), [eventCalendars]);
 
@@ -396,9 +397,9 @@ export function CalendarSidebarPanel({
     }
 
     const isBirthday = cal.id === BIRTHDAY_CALENDAR_ID;
-    const canCreate = onCreateEvent && !isBirthday && cal.myRights?.mayWriteOwn !== false;
+    const canCreate = onCreateEvent && !isBirthday && !cal.isTasksOnly && cal.myRights?.mayWriteOwn !== false;
     const canShare = onShareCalendar && cal.myRights?.mayShare && !cal.isShared;
-    const canSetDefault = !!client && !isBirthday && !cal.isShared && !cal.isDefault;
+    const canSetDefault = !!client && !isBirthday && !cal.isTasksOnly && !cal.isShared && !cal.isDefault;
     const canChangeColor = !!onColorChange;
     const hasColorOverride = !!cal.isShared && !!sharedCalendarColors[sharedCalendarColorKey(cal)];
     const canResetColor = !!onResetColor && hasColorOverride;
@@ -528,6 +529,18 @@ export function CalendarSidebarPanel({
             <span className="text-xs text-destructive font-medium">{overdueTaskCount} {t('tasks.filter_overdue').toLowerCase()}</span>
           )}
         </button>
+      )}
+      {enableCalendarTasks && taskCalendars.length > 0 && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5 px-1">
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              {t('tasks.label') || 'Aufgaben'}
+            </h3>
+          </div>
+          <div className="space-y-0.5">
+            {taskCalendars.map(renderCalendarItem)}
+          </div>
+        </div>
       )}
       {multiAccountMode && localAccountGroups.length > 0 ? (
         <>
