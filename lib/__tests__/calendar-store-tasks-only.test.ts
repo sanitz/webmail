@@ -41,8 +41,8 @@ describe('useCalendarStore - task-only calendar persistence (#1208)', () => {
     const state = useCalendarStore.getState();
     expect(state.taskCalendarIds['cal-nuraufgaben']).toBe(true);
     expect(state.calendars.find((c) => c.id === 'cal-nuraufgaben')?.isTasksOnly).toBe(true);
-    // Task-only calendar should NOT be added to selectedCalendarIds (event view)
-    expect(state.selectedCalendarIds).not.toContain('cal-nuraufgaben');
+    // Task-only calendar should be added to selectedCalendarIds (checked in sidebar)
+    expect(state.selectedCalendarIds).toContain('cal-nuraufgaben');
   });
 
   it('adds regular/combined calendar to selectedCalendarIds and leaves isTasksOnly false', async () => {
@@ -91,7 +91,7 @@ describe('useCalendarStore - task-only calendar persistence (#1208)', () => {
     expect(taskCal?.isTasksOnly).toBe(true);
     expect(regularCal?.isTasksOnly).toBe(false);
     expect(state.selectedCalendarIds).toContain('cal-regular');
-    expect(state.selectedCalendarIds).not.toContain('cal-custom-task');
+    expect(state.selectedCalendarIds).toContain('cal-custom-task');
   });
 
   it('merges taskCalendarIds in multi-account aggregated fetchAllAccountsCalendars', async () => {
@@ -123,7 +123,7 @@ describe('useCalendarStore - task-only calendar persistence (#1208)', () => {
     expect(acct1Cal?.isTasksOnly).toBe(false);
     expect(acct2Cal?.isTasksOnly).toBe(true);
     expect(state.selectedCalendarIds).toContain(acct1Cal?.id);
-    expect(state.selectedCalendarIds).not.toContain(acct2Cal?.id);
+    expect(state.selectedCalendarIds).toContain(acct2Cal?.id);
   });
 
   it('cleans up taskCalendarIds when a calendar is removed', async () => {
