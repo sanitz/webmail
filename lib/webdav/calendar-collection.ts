@@ -121,8 +121,16 @@ export function parseCalendarCollectionComponents(xml: string): Record<string, C
 /**
  * Fetches the supported-calendar-component-set for all calendar collections
  * from Stalwart's CalDAV endpoint via the /api/webdav proxy.
+ *
+ * `accountHeaders` pins the request to a specific account's cookie slot
+ * (via {@link getAccountSlotHeadersFor}) - required when scanning an account
+ * other than the currently active one, since the proxy otherwise resolves
+ * credentials from whichever account is focused in the UI (#1208).
+ * Defaults to the active account for single-account callers.
  */
-export async function fetchCalendarCollectionComponents(): Promise<Record<string, CalendarComponentType[]>> {
+export async function fetchCalendarCollectionComponents(
+  accountHeaders: Record<string, string> = getActiveAccountSlotHeaders(),
+): Promise<Record<string, CalendarComponentType[]>> {
   try {
     const response = await apiFetch('/api/webdav', {
       method: 'POST',
@@ -132,7 +140,7 @@ export async function fetchCalendarCollectionComponents(): Promise<Record<string
         'X-WebDAV-Path': '/',
         'Depth': '1',
         'Content-Type': 'application/xml; charset=utf-8',
-        ...getActiveAccountSlotHeaders(),
+        ...accountHeaders,
       },
       body: `<?xml version="1.0" encoding="utf-8"?>
 <D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">

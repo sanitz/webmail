@@ -156,5 +156,15 @@ describe('fetchCalendarCollectionComponents', () => {
     const result = await fetchCalendarCollectionComponents();
     expect(result).toEqual({});
   });
+
+  it('uses the explicitly passed account headers instead of the active-account default (#1208)', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('<D:multistatus xmlns:D="DAV:"/>', { status: 207 }));
+    await fetchCalendarCollectionComponents({ 'X-JMAP-Cookie-Slot': '5' });
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    // The mocked getActiveAccountSlotHeaders() would return slot '2' (see the
+    // module mock above) - the explicit override must win, since this is the
+    // path used when scanning an account other than the active one.
+    expect(init.headers).toMatchObject({ 'X-JMAP-Cookie-Slot': '5' });
+  });
 });
 
