@@ -6,6 +6,7 @@ import { format, parseISO, isBefore, isTomorrow } from "date-fns";
 import { displayNow, isDisplayToday } from "@/lib/timezone";
 import { Check, Flag, CalendarDays, ListTodo, Plus } from "@/components/icons";
 import { cn } from "@/lib/utils";
+import { filterTasksBySelectedCalendars } from "@/lib/task-visibility";
 import type { CalendarTask, Calendar } from "@/lib/jmap/types";
 import type { TaskViewFilter } from "@/stores/task-store";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -68,11 +69,9 @@ export function filterTasksForList(
   selectedCalendarIds: string[],
   filter: TaskViewFilter,
   showCompleted: boolean,
+  calendars: Pick<Calendar, 'id' | 'originalId'>[] = [],
 ): CalendarTask[] {
-  let result = tasks.filter(task => {
-    const calIds = Object.keys(task.calendarIds);
-    return calIds.some(id => selectedCalendarIds.includes(id));
-  });
+  let result = filterTasksBySelectedCalendars(tasks, selectedCalendarIds, calendars);
 
   if (!showCompleted) {
     result = result.filter(task => task.progress !== "completed" && task.progress !== "cancelled");
@@ -132,8 +131,8 @@ export function TaskListView({
   const [quickAddTitle, setQuickAddTitle] = useState("");
 
   const filteredTasks = useMemo(
-    () => filterTasksForList(tasks, selectedCalendarIds, filter, showCompleted),
-    [tasks, selectedCalendarIds, filter, showCompleted],
+    () => filterTasksForList(tasks, selectedCalendarIds, filter, showCompleted, calendars),
+    [tasks, selectedCalendarIds, filter, showCompleted, calendars],
   );
 
   const handleToggle = useCallback((e: React.MouseEvent, task: CalendarTask) => {
