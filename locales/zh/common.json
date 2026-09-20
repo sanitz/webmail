@@ -4684,6 +4684,9 @@
       "due_tomorrow": "明天",
       "overdue": "逾期"
     },
+    "errors": {
+      "no_writable_calendar_for_event": "Can't save: this calendar doesn't accept events."
+    },
     "months": {
       "jan": "1月",
       "feb": "2月",

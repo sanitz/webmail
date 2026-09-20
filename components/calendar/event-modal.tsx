@@ -32,6 +32,7 @@ import {
 } from "@/lib/calendar-participants";
 import { canUserRsvp, getEventEditability, canCreateEventsIn } from "@/lib/calendar-editability";
 import { changesWhen, type EditorAttendee, type EventEditorState } from "@/lib/recurrence-scope-edit";
+import { toast } from "@/stores/toast-store";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { useSettingsStore } from "@/stores/settings-store";
 import { generateUUID } from "@/lib/utils";
@@ -721,7 +722,10 @@ export function EventModal({
 
     if (!calendarId) return;
     const targetCal = calendars.find(c => c.id === calendarId);
-    if (targetCal && !canCreateEventsIn(targetCal, isSubscriptionCalendar)) return;
+    if (targetCal && !canCreateEventsIn(targetCal, isSubscriptionCalendar)) {
+      toast.error(t('errors.no_writable_calendar_for_event'));
+      return;
+    }
 
     const pendingAttendee = participantInputRef.current?.flush() ?? null;
     const effectiveAttendees = pendingAttendee ? [...attendees, pendingAttendee] : attendees;

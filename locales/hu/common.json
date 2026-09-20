@@ -4748,7 +4748,10 @@
       "results": "{count, plural, one {# esemény található} other {# esemény található}}"
     },
     "mini_has_events": "vannak események",
-    "mini_week_number": "{week}. hét"
+    "mini_week_number": "{week}. hét",
+    "errors": {
+      "no_writable_calendar_for_event": "Can't save: this calendar doesn't accept events."
+    }
   },
   "calendar_event_notifications": {
     "someone": "Valaki",

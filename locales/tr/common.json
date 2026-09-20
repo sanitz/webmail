@@ -4748,7 +4748,11 @@
       "results": "{count, plural, one {# etkinlik bulundu} other {# etkinlik bulundu}}"
     },
     "mini_has_events": "etkinlik var",
-    "mini_week_number": "{week}. hafta"
+    "mini_week_number": "{week}. hafta",
+    "errors": {
+      "no_writable_calendar_for_event": "Can't save: this calendar doesn't accept events."
+    },
+    "nav_open_menu": "Menüyü aç"
   },
   "calendar_event_notifications": {
     "someone": "Birisi",

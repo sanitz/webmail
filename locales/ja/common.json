@@ -4684,6 +4684,9 @@
       "due_tomorrow": "明日が期限",
       "overdue": "期限切れ"
     },
+    "errors": {
+      "no_writable_calendar_for_event": "Can't save: this calendar doesn't accept events."
+    },
     "months": {
       "jan": "1月",
       "feb": "2月",

@@ -4684,6 +4684,9 @@
       "due_tomorrow": "내일 마감",
       "overdue": "기한 지남"
     },
+    "errors": {
+      "no_writable_calendar_for_event": "Can't save: this calendar doesn't accept events."
+    },
     "months": {
       "jan": "1월",
       "feb": "2월",
