@@ -35,7 +35,7 @@ import {
   mergeSyncedSubscriptions,
   subscriptionOwnerFor,
 } from '@/lib/calendar-subscription-sync';
-import { registerCalendarSubscriptionSyncBridge } from './settings-store';
+import { registerCalendarSubscriptionSyncBridge, useSettingsStore } from './settings-store';
 import { currentStoreEpoch } from '@/lib/store-epoch';
 
 /**
@@ -348,17 +348,36 @@ export function reconcileSelectedIds(
   return out;
 }
 
-/** Marks calendars persisted as tasks-only (settings sync) even when discovery did not (#1208). */
-function withPersistedTasksOnly(
-  calendars: Calendar[],
-  taskCalendarIds: Record<string, boolean> | undefined,
-): Calendar[] {
-  return calendars.map((c) => ({
+/**
+ * Marks calendars classified as tasks-only locally or through settings sync
+ * even when discovery did not, and syncs newly found ones back (#1208).
+ */
+function resolveTasksOnlyCalendars(
+  rawCalendars: Calendar[],
+  localTaskCalendarIds: Record<string, boolean> | undefined,
+): { calendars: Calendar[]; taskCalendarIds: Record<string, boolean> } {
+  const syncedTaskCalendarIds = useSettingsStore.getState().taskCalendarIds || {};
+  const taskCalendarIds = { ...localTaskCalendarIds, ...syncedTaskCalendarIds };
+  const calendars = rawCalendars.map((c) => ({
     ...c,
     isTasksOnly: Boolean(
-      c.isTasksOnly || taskCalendarIds?.[c.id] || (c.originalId && taskCalendarIds?.[c.originalId]),
+      c.isTasksOnly || taskCalendarIds[c.id] || (c.originalId && taskCalendarIds[c.originalId]),
     ),
   }));
+  let changed = false;
+  for (const c of calendars) {
+    if (!c.isTasksOnly) continue;
+    for (const id of [c.id, c.originalId]) {
+      if (id && !taskCalendarIds[id]) {
+        taskCalendarIds[id] = true;
+        changed = true;
+      }
+    }
+  }
+  if (changed || Object.keys(syncedTaskCalendarIds).length !== Object.keys(taskCalendarIds).length) {
+    useSettingsStore.getState().updateSetting('taskCalendarIds', taskCalendarIds);
+  }
+  return { calendars, taskCalendarIds };
 }
 
 /**
@@ -730,7 +749,9 @@ export const useCalendarStore = create<CalendarStore>()(
           // list and the selection as they were.
           const { calendars: fetched, failedAccountIds } = await client.getAllCalendarsWithFailures();
           if (currentStoreEpoch() !== epoch) return;
-          const calendars = sortCalendars(withPersistedTasksOnly(fetched, get().taskCalendarIds));
+          const resolved = resolveTasksOnlyCalendars(fetched, get().taskCalendarIds);
+          const calendars = sortCalendars(resolved.calendars);
+          const { taskCalendarIds } = resolved;
           // Task lists are selected by default too, so their tasks show (#1208).
           const defaultSelected = calendars.map(c => c.id);
           set({
@@ -743,6 +764,7 @@ export const useCalendarStore = create<CalendarStore>()(
               // Shared calendars' ids are `<accountId>:<id>` (getAllCalendars).
               failedAccountIds.map((accountId) => `${accountId}:`),
             ),
+            taskCalendarIds,
           });
         } catch (error) {
           if (currentStoreEpoch() !== epoch) return;
@@ -813,7 +835,9 @@ export const useCalendarStore = create<CalendarStore>()(
             })
           );
           if (currentStoreEpoch() !== epoch) return;
-          const calendars = sortCalendars(withPersistedTasksOnly(results.flat(), get().taskCalendarIds));
+          const resolved = resolveTasksOnlyCalendars(results.flat(), get().taskCalendarIds);
+          const calendars = sortCalendars(resolved.calendars);
+          const { taskCalendarIds } = resolved;
           set({
             calendars,
             isLoading: false,
@@ -823,6 +847,7 @@ export const useCalendarStore = create<CalendarStore>()(
               calendars.map(c => c.id),
               unloadedPrefixes,
             ),
+            taskCalendarIds,
           });
         } catch (error) {
           if (currentStoreEpoch() !== epoch) return;
@@ -1294,6 +1319,13 @@ export const useCalendarStore = create<CalendarStore>()(
           const isTasksOnly = options?.components?.length === 1 && options.components[0] === 'VTODO';
           const created = await client.createCalendar(withNextSortOrder(client, get().calendars, calendar), undefined, options);
           const augmented = isTasksOnly ? { ...created, isTasksOnly: true } : created;
+          if (isTasksOnly) {
+            const currentSynced = useSettingsStore.getState().taskCalendarIds || {};
+            useSettingsStore.getState().updateSetting('taskCalendarIds', {
+              ...currentSynced,
+              [created.id]: true,
+            });
+          }
           // Added with its raw id; the next aggregated refetch namespaces it and
           // reconcileSelectedIds() remaps the selection so it stays visible.
           set((state) => ({
@@ -1320,6 +1352,10 @@ export const useCalendarStore = create<CalendarStore>()(
           const targetAccountId = cal?.accountId;
           client = resolveAccountClient(client, cal?.localAccountId);
           await client.deleteCalendar(realId, targetAccountId);
+          const currentSynced = { ...(useSettingsStore.getState().taskCalendarIds || {}) };
+          delete currentSynced[calendarId];
+          if (realId) delete currentSynced[realId];
+          useSettingsStore.getState().updateSetting('taskCalendarIds', currentSynced);
           set((state) => {
             const nextTaskCalendarIds = { ...(state.taskCalendarIds || {}) };
             delete nextTaskCalendarIds[calendarId];
