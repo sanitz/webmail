@@ -1,7 +1,7 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { EventModal } from '../event-modal';
-import type { Calendar, CalendarEvent } from '@/lib/jmap/types';
+import type { Calendar } from '@/lib/jmap/types';
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
