@@ -953,7 +953,7 @@ export function EventModal({
       savingRef.current = false;
       setIsSaving(false);
     }
-  }, [title, description, location, virtualLocation, startDate, startTime, endDate, endTime, allDay, calendarId, calendars, recurrence, customRule, useDefaultAlerts, defaultAlerts, alertRows, preservedAlerts, attendees, initialAttendees, sendInvitations, currentUserEmails, userIsOrganizer, resolveContactName, event, eventDescription, onSave, isSaving, t]);
+  }, [title, description, location, virtualLocation, startDate, startTime, endDate, endTime, allDay, calendarId, calendars, recurrence, customRule, useDefaultAlerts, defaultAlerts, alertRows, preservedAlerts, attendees, initialAttendees, sendInvitations, currentUserEmails, userIsOrganizer, resolveContactName, event, eventDescription, onSave, isSaving, t, isSubscriptionCalendar]);
 
   // The user's own answer, and the owner's in a calendar shared with them
   // (lib/calendar-delegate.ts).
