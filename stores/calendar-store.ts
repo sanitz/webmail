@@ -724,9 +724,8 @@ export const useCalendarStore = create<CalendarStore>()(
           // list and the selection as they were.
           const { calendars: fetched, failedAccountIds } = await client.getAllCalendarsWithFailures();
           const calendars = sortCalendars(withPersistedTasksOnly(fetched, get().taskCalendarIds));
-          // Default the visible selection to event calendars only - tasks-only
-          // calendars stay out of the event grid.
-          const defaultSelected = calendars.filter(c => !c.isTasksOnly).map(c => c.id);
+          // Task lists are selected by default too, so their tasks show (#1208).
+          const defaultSelected = calendars.map(c => c.id);
           set({
             calendars,
             isLoading: false,
@@ -1279,7 +1278,7 @@ export const useCalendarStore = create<CalendarStore>()(
           // reconcileSelectedIds() remaps the selection so it stays visible.
           set((state) => ({
             calendars: sortCalendars([...state.calendars, augmented]),
-            selectedCalendarIds: isTasksOnly ? state.selectedCalendarIds : [...state.selectedCalendarIds, created.id],
+            selectedCalendarIds: [...state.selectedCalendarIds, created.id],
             taskCalendarIds: isTasksOnly
               ? { ...state.taskCalendarIds, [created.id]: true }
               : state.taskCalendarIds,
