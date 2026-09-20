@@ -44,19 +44,18 @@ describe('TaskListView', () => {
     { id: 'cal-tasks-only', name: 'NurAufgaben', isTasksOnly: true } as Calendar,
   ];
 
-  it('displays tasks in task-only calendars even when not in selectedCalendarIds (#1208)', () => {
-    // selectedCalendarIds only contains event calendars ('cal-events')
-    const selectedCalendarIds = ['cal-events'];
+  it('filters tasks based on selectedCalendarIds for all collections including task-only (#1208)', () => {
     const tasks = [
       makeTask('t1', 'cal-tasks-only', 'Task in Tasks-Only Calendar'),
       makeTask('t2', 'cal-events', 'Task in Event Calendar'),
     ];
 
-    render(
+    // When cal-tasks-only is selected, its tasks are shown
+    const { rerender } = render(
       <TaskListView
         tasks={tasks}
         calendars={calendars}
-        selectedCalendarIds={selectedCalendarIds}
+        selectedCalendarIds={['cal-events', 'cal-tasks-only']}
         filter="all"
         showCompleted={false}
         onSelectTask={vi.fn()}
@@ -65,6 +64,22 @@ describe('TaskListView', () => {
     );
 
     expect(screen.getByText('Task in Tasks-Only Calendar')).toBeDefined();
+    expect(screen.getByText('Task in Event Calendar')).toBeDefined();
+
+    // When cal-tasks-only is unselected/hidden, its tasks MUST be filtered out
+    rerender(
+      <TaskListView
+        tasks={tasks}
+        calendars={calendars}
+        selectedCalendarIds={['cal-events']}
+        filter="all"
+        showCompleted={false}
+        onSelectTask={vi.fn()}
+        onToggleComplete={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText('Task in Tasks-Only Calendar')).toBeNull();
     expect(screen.getByText('Task in Event Calendar')).toBeDefined();
   });
 });
