@@ -51,7 +51,7 @@ export function isTasksOnlyCalendarName(name?: string | null): boolean {
   if (!name || typeof name !== 'string') return false;
   const normalized = name.trim().toLowerCase();
   if (!normalized) return false;
-  const taskNames = new Set([
+  const taskKeywords = [
     'aufgaben',
     'tasks',
     'task',
@@ -63,8 +63,18 @@ export function isTasksOnlyCalendarName(name?: string | null): boolean {
     'erinnerungen',
     'reminders',
     'reminder',
-  ]);
-  return taskNames.has(normalized);
+  ];
+  return taskKeywords.some((kw) =>
+    normalized === kw ||
+    normalized.startsWith(`${kw} `) ||
+    normalized.startsWith(`${kw}-`) ||
+    normalized.startsWith(`${kw}_`) ||
+    normalized.endsWith(` ${kw}`) ||
+    normalized.endsWith(`-${kw}`) ||
+    normalized.endsWith(`_${kw}`) ||
+    normalized.endsWith(kw) ||
+    normalized.includes(` ${kw} `)
+  );
 }
 
 /**
