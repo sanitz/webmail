@@ -6697,9 +6697,10 @@ export class JMAPClient implements IJMAPClient {
     // finished off over JMAP. If that path is unavailable (older server, proxy
     // unreachable, shared account) we fall back to a plain Calendar/set, which
     // yields the previous "every component type" calendar (#760).
+    const isTasksOnly = options?.components?.length === 1 && options.components[0] === 'VTODO';
     if (accountId === this.getAccountId()) {
       const created = await this.createCalendarViaCalDav(calendar, accountId, options?.components);
-      if (created) return created;
+      if (created) return isTasksOnly ? { ...created, isTasksOnly: true } : created;
     }
 
     const response = await this.request([
@@ -6722,7 +6723,7 @@ export class JMAPClient implements IJMAPClient {
       const createdId = result.created?.["new-calendar"]?.id;
       if (createdId) {
         const created = await this.getCalendarById(accountId, createdId);
-        if (created) return created;
+        if (created) return isTasksOnly ? { ...created, isTasksOnly: true } : created;
       }
     }
 

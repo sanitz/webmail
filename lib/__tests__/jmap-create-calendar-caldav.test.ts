@@ -109,6 +109,15 @@ describe('JMAPClient.createCalendar pins the CalDAV component set (#760)', () =>
     expect(created.color).toBe('#ff0000');
   });
 
+  it('sets isTasksOnly on calendar when created with VTODO components (#1208)', async () => {
+    const server = scriptServer(fetchSpy, 201);
+    const created = await client.createCalendar({ name: 'NurAufgaben', color: '#ff0000' }, undefined, { components: ['VTODO'] });
+    expect(server.dav()[0].init.body).toContain('<C:comp name="VTODO"/>');
+    expect(server.dav()[0].init.body).not.toContain('VEVENT');
+    expect(created.id).toBe('new');
+    expect(created.isTasksOnly).toBe(true);
+  });
+
   it('defaults to an events-only calendar', async () => {
     const server = scriptServer(fetchSpy, 201);
     await client.createCalendar({ name: 'Work' });
