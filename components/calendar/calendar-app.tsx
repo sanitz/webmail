@@ -1706,7 +1706,8 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
                 selectedTaskId={taskStore.selectedTaskId}
                 onQuickCreate={(title) => {
                   if (client) {
-                    taskStore.createTask(client, { "@type": "Task", title, progress: "needs-action", calendarIds: { [calendars[0]?.id ?? ""]: true } });
+                    const targetCal = calendars.find(c => c.isTasksOnly) || calendars[0];
+                    taskStore.createTask(client, { "@type": "Task", title, progress: "needs-action", calendarIds: { [targetCal?.id ?? ""]: true } });
                   }
                 }}
               />
