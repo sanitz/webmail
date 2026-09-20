@@ -558,6 +558,12 @@ interface SettingsState {
   enableCalendarTasks: boolean;
   showTasksOnCalendar: boolean;
   taskCalendarIds: Record<string, boolean>;
+  // Ids removed from taskCalendarIds by this device, keyed to a deletion
+  // timestamp. A stale synced blob (another device, a delayed server poll)
+  // can still list a since-deleted id; importSettings excludes tombstoned
+  // ids from its merge instead of silently reviving them (#1208 review).
+  // Device-local only - not part of exportSettings' synced payload.
+  deletedTaskCalendarIds: Record<string, string>;
 
   // Contact Birthday Calendar
   showBirthdayCalendar: boolean;
@@ -833,6 +839,7 @@ const DEFAULT_SETTINGS = {
   enableCalendarTasks: true,
   showTasksOnCalendar: true,
   taskCalendarIds: {} as Record<string, boolean>,
+  deletedTaskCalendarIds: {} as Record<string, string>,
 
   // Contact Birthday Calendar
   showBirthdayCalendar: false,
@@ -1288,7 +1295,12 @@ export const useSettingsStore = create<SettingsState>()(
               if (key === 'taskCalendarIds') {
                 const existing = get().taskCalendarIds || {};
                 const incoming = (settings.taskCalendarIds as Record<string, boolean>) || {};
-                put(key, { taskCalendarIds: { ...existing, ...incoming } });
+                const deletedIds = get().deletedTaskCalendarIds || {};
+                const merged = { ...existing, ...incoming };
+                for (const id of Object.keys(deletedIds)) {
+                  delete merged[id];
+                }
+                put(key, { taskCalendarIds: merged });
                 return;
               }
               put(key, { [key]: settings[key] });

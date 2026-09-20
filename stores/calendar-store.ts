@@ -348,35 +348,69 @@ export function reconcileSelectedIds(
 }
 
 /**
- * Marks calendars classified as tasks-only locally or through settings sync
- * even when discovery did not, and syncs newly found ones back (#1208).
+ * Merges freshly-fetched calendars' `isTasksOnly` with the persisted sticky
+ * `taskCalendarIds` flags (local store + settings-store sync), and returns
+ * the updated flag map to persist.
+ *
+ * A sticky flag exists so an empty or freshly-created task calendar (no
+ * objects yet to scan, see #1208) keeps its classification across reloads.
+ * But that same stickiness must not become permanent for a calendar this
+ * fetch *conclusively* re-classified: `isTasksOnlyConfirmed` marks a result
+ * backed by hard evidence (CalDAV component-set, or a content-scan that
+ * actually found an object), as opposed to "no evidence either way this
+ * time, defaulted to false". Only a confirmed negative overrides/clears the
+ * sticky flag; an inconclusive one still defers to it (#1208 review).
  */
-function resolveTasksOnlyCalendars(
+function reconcileTaskCalendarIds(
   rawCalendars: Calendar[],
-  localTaskCalendarIds: Record<string, boolean> | undefined,
-): { calendars: Calendar[]; taskCalendarIds: Record<string, boolean> } {
+  taskCalendarIds: Record<string, boolean>,
+): {
+  calendars: Calendar[];
+  updatedTaskCalendarIds: Record<string, boolean>;
+  taskCalendarIdsChanged: boolean;
+} {
   const syncedTaskCalendarIds = useSettingsStore.getState().taskCalendarIds || {};
-  const taskCalendarIds = { ...localTaskCalendarIds, ...syncedTaskCalendarIds };
+  const mergedTaskCalendarIds = { ...taskCalendarIds, ...syncedTaskCalendarIds };
+
   const calendars = rawCalendars.map((c) => ({
     ...c,
-    isTasksOnly: Boolean(
-      c.isTasksOnly || taskCalendarIds[c.id] || (c.originalId && taskCalendarIds[c.originalId]),
-    ),
+    isTasksOnly: c.isTasksOnlyConfirmed
+      ? Boolean(c.isTasksOnly)
+      : Boolean(
+          c.isTasksOnly ||
+          mergedTaskCalendarIds?.[c.id] ||
+          (c.originalId && mergedTaskCalendarIds?.[c.originalId])
+        ),
   }));
+
+  const updatedTaskCalendarIds = { ...mergedTaskCalendarIds };
   let changed = false;
   for (const c of calendars) {
-    if (!c.isTasksOnly) continue;
-    for (const id of [c.id, c.originalId]) {
-      if (id && !taskCalendarIds[id]) {
-        taskCalendarIds[id] = true;
+    if (c.isTasksOnly) {
+      if (!updatedTaskCalendarIds[c.id]) {
+        updatedTaskCalendarIds[c.id] = true;
+        changed = true;
+      }
+      if (c.originalId && !updatedTaskCalendarIds[c.originalId]) {
+        updatedTaskCalendarIds[c.originalId] = true;
+        changed = true;
+      }
+    } else if (c.isTasksOnlyConfirmed) {
+      if (c.id in updatedTaskCalendarIds) {
+        delete updatedTaskCalendarIds[c.id];
+        changed = true;
+      }
+      if (c.originalId && c.originalId in updatedTaskCalendarIds) {
+        delete updatedTaskCalendarIds[c.originalId];
         changed = true;
       }
     }
   }
-  if (changed || Object.keys(syncedTaskCalendarIds).length !== Object.keys(taskCalendarIds).length) {
-    useSettingsStore.getState().updateSetting('taskCalendarIds', taskCalendarIds);
-  }
-  return { calendars, taskCalendarIds };
+
+  const taskCalendarIdsChanged =
+    changed || Object.keys(syncedTaskCalendarIds).length !== Object.keys(updatedTaskCalendarIds).length;
+
+  return { calendars, updatedTaskCalendarIds, taskCalendarIdsChanged };
 }
 
 /**
@@ -394,6 +428,36 @@ function selectionAfterFetch(
   const reconciled = reconcileSelectedIds(selectedCalendarIds, calendars, unloadedPrefixes);
   if (reconciled.some((id) => id !== BIRTHDAY_CALENDAR_ID)) return reconciled;
   return reconciled.includes(BIRTHDAY_CALENDAR_ID) ? [...defaultSelected, BIRTHDAY_CALENDAR_ID] : defaultSelected;
+}
+
+/**
+ * Final `selectedCalendarIds` after a calendar fetch: `reconcileSelectedIds`
+ * output, plus any task-only calendar the client has never seen before
+ * (compared by raw id against `previousCalendars`, the store's calendar list
+ * from before this fetch).
+ *
+ * Without this, a calendar that only just became visible as a task list
+ * (feature rollout, or freshly created/discovered elsewhere) stays
+ * unselected forever for any user whose selection wasn't already empty -
+ * `reconcileSelectedIds` only maps ids already present in the old selection
+ * forward, it never adds new ones (#1208 review). An already-known task
+ * calendar the user deliberately unchecked is left alone.
+ */
+function computeCalendarSelection(
+  previousCalendars: Calendar[],
+  calendars: Calendar[],
+  selectedCalendarIds: string[],
+  unloadedPrefixes?: string[],
+): string[] {
+  const stillValid = selectionAfterFetch(selectedCalendarIds, calendars, calendars.map((c) => c.id), unloadedPrefixes);
+
+  const rawIdOf = (c: Calendar) => c.originalId ?? stripLocalAccountPrefix(c.id, c.localAccountId);
+  const previousRawIds = new Set(previousCalendars.map(rawIdOf));
+  const newlySurfacedTaskIds = calendars
+    .filter((c) => c.isTasksOnly && !previousRawIds.has(rawIdOf(c)))
+    .map((c) => c.id);
+
+  return Array.from(new Set([...stillValid, ...newlySurfacedTaskIds]));
 }
 
 // In-flight refresh dedup. Concurrent callers (auto-interval +
@@ -741,23 +805,25 @@ export const useCalendarStore = create<CalendarStore>()(
         try {
           // Throws when the primary account fails, so a failed fetch leaves the
           // list and the selection as they were.
-          const { calendars: fetched, failedAccountIds } = await client.getAllCalendarsWithFailures();
-          const resolved = resolveTasksOnlyCalendars(fetched, get().taskCalendarIds);
-          const calendars = sortCalendars(resolved.calendars);
-          const { taskCalendarIds } = resolved;
-          // Task lists are selected by default too, so their tasks show (#1208).
-          const defaultSelected = calendars.map(c => c.id);
+          const { calendars: rawCalendars, failedAccountIds } = await client.getAllCalendarsWithFailures();
+          const { selectedCalendarIds, taskCalendarIds, calendars: previousCalendars } = get();
+          const { calendars: reconciled, updatedTaskCalendarIds, taskCalendarIdsChanged } =
+            reconcileTaskCalendarIds(rawCalendars, taskCalendarIds);
+          const calendars = sortCalendars(reconciled);
+          if (taskCalendarIdsChanged) {
+            useSettingsStore.getState().updateSetting('taskCalendarIds', updatedTaskCalendarIds);
+          }
           set({
             calendars,
             isLoading: false,
-            selectedCalendarIds: selectionAfterFetch(
-              get().selectedCalendarIds,
+            selectedCalendarIds: computeCalendarSelection(
+              previousCalendars,
               calendars,
-              defaultSelected,
+              selectedCalendarIds,
               // Shared calendars' ids are `<accountId>:<id>` (getAllCalendars).
               failedAccountIds.map((accountId) => `${accountId}:`),
             ),
-            taskCalendarIds,
+            taskCalendarIds: updatedTaskCalendarIds,
           });
         } catch (error) {
           debug.error('Failed to fetch calendars:', error);
@@ -822,19 +888,19 @@ export const useCalendarStore = create<CalendarStore>()(
               }
             })
           );
-          const resolved = resolveTasksOnlyCalendars(results.flat(), get().taskCalendarIds);
-          const calendars = sortCalendars(resolved.calendars);
-          const { taskCalendarIds } = resolved;
+          const rawCalendars = results.flat();
+          const { selectedCalendarIds, taskCalendarIds, calendars: previousCalendars } = get();
+          const { calendars: reconciled, updatedTaskCalendarIds, taskCalendarIdsChanged } =
+            reconcileTaskCalendarIds(rawCalendars, taskCalendarIds);
+          const calendars = sortCalendars(reconciled);
+          if (taskCalendarIdsChanged) {
+            useSettingsStore.getState().updateSetting('taskCalendarIds', updatedTaskCalendarIds);
+          }
           set({
             calendars,
             isLoading: false,
-            selectedCalendarIds: selectionAfterFetch(
-              get().selectedCalendarIds,
-              calendars,
-              calendars.map(c => c.id),
-              unloadedPrefixes,
-            ),
-            taskCalendarIds,
+            selectedCalendarIds: computeCalendarSelection(previousCalendars, calendars, selectedCalendarIds, unloadedPrefixes),
+            taskCalendarIds: updatedTaskCalendarIds,
           });
         } catch (error) {
           debug.error('Failed to fetch all account calendars:', error);
@@ -1336,6 +1402,14 @@ export const useCalendarStore = create<CalendarStore>()(
           delete currentSynced[calendarId];
           if (realId) delete currentSynced[realId];
           useSettingsStore.getState().updateSetting('taskCalendarIds', currentSynced);
+          // Tombstone the deletion so a stale synced blob (another device, a
+          // delayed server poll) can't silently resurrect it via importSettings'
+          // merge (#1208 review).
+          const now = new Date().toISOString();
+          const deletedIds = { ...(useSettingsStore.getState().deletedTaskCalendarIds || {}) };
+          deletedIds[calendarId] = now;
+          if (realId) deletedIds[realId] = now;
+          useSettingsStore.getState().updateSetting('deletedTaskCalendarIds', deletedIds);
           set((state) => {
             const nextTaskCalendarIds = { ...(state.taskCalendarIds || {}) };
             delete nextTaskCalendarIds[calendarId];
