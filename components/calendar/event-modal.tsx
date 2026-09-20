@@ -280,7 +280,7 @@ export function EventModal({
     // Never default new events into a subscription / read-only / tasks-only calendar (#762, #1208).
     return defaultCal?.id
       || calendars.find(c => canCreateEventsIn(c, isSubscriptionCalendar))?.id
-      || calendars[0]?.id || "";
+      || "";
   });
 
   // Calendars offered as create/move targets: writable, non-subscription, plus
@@ -535,6 +535,10 @@ export function EventModal({
       toast.error(t("notifications.event_error"));
       return;
     }
+
+    if (!calendarId) return;
+    const targetCal = calendars.find(c => c.id === calendarId);
+    if (targetCal && !canCreateEventsIn(targetCal, isSubscriptionCalendar)) return;
 
     const pendingAttendee = participantInputRef.current?.flush() ?? null;
     const effectiveAttendees = pendingAttendee ? [...attendees, pendingAttendee] : attendees;

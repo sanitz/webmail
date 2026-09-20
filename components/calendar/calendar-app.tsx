@@ -66,6 +66,7 @@ import { getEventStartDate } from "@/lib/calendar-utils";
 import { displayNow, getEffectiveTimeZone } from "@/lib/timezone";
 import { canCreateEventsIn } from "@/lib/calendar-editability";
 import { QuickCreatePopover, type QuickCreateDraft } from "@/components/calendar/quick-create-popover";
+import { filterTasksBySelectedCalendars } from "@/lib/task-visibility";
 import { useTaskStore } from "@/stores/task-store";
 import { useContactStore } from "@/stores/contact-store";
 import { cn, generateUUID } from "@/lib/utils";
@@ -1497,16 +1498,16 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
 
   // The tasks the task list shows; plugin buttons in its toolbar act on them.
   const listedTaskIds = useMemo(
-    () => filterTasksForList(taskStore.tasks, selectedCalendarIds, taskStore.filter, taskStore.showCompleted).map((task) => task.id),
-    [taskStore.tasks, selectedCalendarIds, taskStore.filter, taskStore.showCompleted],
+    () => filterTasksForList(taskStore.tasks, selectedCalendarIds, taskStore.filter, taskStore.showCompleted, displayCalendars).map((task) => task.id),
+    [taskStore.tasks, selectedCalendarIds, taskStore.filter, taskStore.showCompleted, displayCalendars],
   );
 
   // Tasks on the month, week and day grids follow the calendar filter like
-  // the events do (#1107).
+  // the events do (#1107, #1208).
   const calendarTasks = useMemo(() => {
     if (!enableCalendarTasks || !showTasksOnCalendar) return undefined;
-    return filterTasksByCalendars(taskStore.tasks, selectedCalendarIds);
-  }, [enableCalendarTasks, showTasksOnCalendar, taskStore.tasks, selectedCalendarIds]);
+    return filterTasksBySelectedCalendars(taskStore.tasks, selectedCalendarIds, displayCalendars);
+  }, [enableCalendarTasks, showTasksOnCalendar, taskStore.tasks, selectedCalendarIds, displayCalendars]);
 
   useEffect(() => {
     const hiddenEvents = events.filter((event) => {
@@ -1709,8 +1710,11 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
                     // Never target a calendar the user can't write to, e.g. a
                     // shared read-only task list sorted before their own (#1208).
                     const writableCalendars = calendars.filter(c => !c.isShared || c.myRights?.mayWriteAll || c.myRights?.mayWriteOwn);
-                    const targetCal = writableCalendars.find(c => c.isTasksOnly) || writableCalendars[0] || calendars[0];
-                    taskStore.createTask(client, { "@type": "Task", title, progress: "needs-action", calendarIds: { [targetCal?.id ?? ""]: true } });
+                    const targetCal = writableCalendars.find(c => c.isTasksOnly) || writableCalendars[0];
+                    const targetId = targetCal?.originalId || targetCal?.id;
+                    if (targetId) {
+                      taskStore.createTask(client, { "@type": "Task", title, progress: "needs-action", calendarIds: { [targetId]: true } });
+                    }
                   }
                 }}
               />
