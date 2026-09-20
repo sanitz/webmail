@@ -3566,7 +3566,10 @@
       "select_view": "Canvia la vista, actualment {view}"
     },
     "other_calendars": "Altres calendaris",
-    "calendar_options": "Opcions de {name}"
+    "calendar_options": "Opcions de {name}",
+"errors": {
+      "no_writable_calendar_for_event": "Can't save: this calendar doesn't accept events."
+    }
   },
   "calendar_event_notifications": {
     "someone": "Algú",

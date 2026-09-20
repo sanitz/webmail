@@ -3534,6 +3534,9 @@
       "due_tomorrow": "Morgen fällig",
       "overdue": "Überfällig"
     },
+    "errors": {
+      "no_writable_calendar_for_event": "Speichern nicht möglich: Dieser Kalender akzeptiert keine Termine."
+    },
     "months": {
       "jan": "Jan",
       "feb": "Feb",

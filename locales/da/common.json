@@ -3566,7 +3566,11 @@
       "select_view": "Skift visning, aktuelt {view}"
     },
     "other_calendars": "Andre kalendere",
-    "calendar_options": "Indstillinger for {name}"
+    "calendar_options": "Indstillinger for {name}",
+"errors": {
+      "no_writable_calendar_for_event": "Can't save: this calendar doesn't accept events."
+    },
+    "nav_open_menu": "Åbn menu"
   },
   "calendar_event_notifications": {
     "someone": "Nogen",

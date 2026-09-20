@@ -3534,6 +3534,9 @@
       "due_tomorrow": "Zítra",
       "overdue": "Po termínu"
     },
+    "errors": {
+      "no_writable_calendar_for_event": "Can't save: this calendar doesn't accept events."
+    },
     "months": {
       "jan": "led",
       "feb": "úno",
