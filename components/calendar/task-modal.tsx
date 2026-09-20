@@ -55,7 +55,7 @@ export function TaskModal({
   const pluginTaskProps = useMemo(() => (task ? { task: taskToView(task) } : null), [task]);
 
   const writableCalendars = calendars.filter(c => !c.isShared || c.myRights?.mayWriteAll || c.myRights?.mayWriteOwn);
-  const defaultCalendarId = writableCalendars[0]?.id ?? calendars[0]?.id ?? "";
+  const defaultCalendarId = writableCalendars.find(c => c.isTasksOnly)?.id ?? writableCalendars[0]?.id ?? calendars[0]?.id ?? "";
 
   const [title, setTitle] = useState(task?.title ?? "");
   const [description, setDescription] = useState(task?.description ?? "");
