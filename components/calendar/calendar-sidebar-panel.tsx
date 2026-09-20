@@ -530,18 +530,6 @@ export function CalendarSidebarPanel({
           )}
         </button>
       )}
-      {enableCalendarTasks && taskCalendars.length > 0 && (
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-1.5 px-1">
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              {t('tasks.label') || 'Aufgaben'}
-            </h3>
-          </div>
-          <div className="space-y-0.5">
-            {taskCalendars.map(renderCalendarItem)}
-          </div>
-        </div>
-      )}
       {multiAccountMode && localAccountGroups.length > 0 ? (
         <>
           {localAccountGroups.map((group, idx) => {
@@ -637,6 +625,19 @@ export function CalendarSidebarPanel({
             </div>
           )}
         </>
+      )}
+
+      {enableCalendarTasks && taskCalendars.length > 0 && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              {t('tasks.label') || 'Aufgaben'}
+            </h3>
+          </div>
+          <div className="space-y-0.5">
+            {taskCalendars.map(renderCalendarItem)}
+          </div>
+        </div>
       )}
 
       {renderCalendarMenu()}
