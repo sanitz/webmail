@@ -2,9 +2,9 @@
  * Helpers for deciding whether a calendar holds only tasks (VTODO) and so
  * should be hidden from the *event* calendar UI (#761).
  *
- * JMAP's Calendar/get on Stalwart exposes no per-calendar supported-component
- * set, so "tasks-only" has to be derived from the objects a calendar contains,
- * mirroring how task objects are already told apart from events elsewhere.
+ * This is derived purely from the objects a calendar contains (RFC 8984 / JMAP
+ * Task types vs Events) or explicit collection component metadata, NEVER from
+ * calendar names.
  */
 
 /**
@@ -44,43 +44,9 @@ export interface CalendarDescriptor {
 }
 
 /**
- * Checks if a calendar name strongly indicates a dedicated task list in
- * English or German (e.g. "Aufgaben", "Tasks", "To-Do", "Reminders").
- */
-export function isTasksOnlyCalendarName(name?: string | null): boolean {
-  if (!name || typeof name !== 'string') return false;
-  const normalized = name.trim().toLowerCase();
-  if (!normalized) return false;
-  const taskKeywords = [
-    'aufgaben',
-    'tasks',
-    'task',
-    'to-do',
-    'to-dos',
-    'todos',
-    'todo',
-    'to do',
-    'erinnerungen',
-    'reminders',
-    'reminder',
-  ];
-  return taskKeywords.some((kw) =>
-    normalized === kw ||
-    normalized.startsWith(`${kw} `) ||
-    normalized.startsWith(`${kw}-`) ||
-    normalized.startsWith(`${kw}_`) ||
-    normalized.endsWith(` ${kw}`) ||
-    normalized.endsWith(`-${kw}`) ||
-    normalized.endsWith(`_${kw}`) ||
-    normalized.endsWith(kw) ||
-    normalized.includes(` ${kw} `)
-  );
-}
-
-/**
  * Given every object in an account and the calendars under consideration,
- * return the ids of calendars that hold only tasks (no event), or that are
- * explicitly dedicated task lists by name/collection component type.
+ * return the ids of calendars that hold only tasks (no event).
+ * This classification is purely object-content-based without any name heuristics.
  */
 export function findTasksOnlyCalendarIds(
   objects: ScannedCalendarObject[],
@@ -100,11 +66,7 @@ export function findTasksOnlyCalendarIds(
   const tasksOnly = new Set<string>();
   for (const cal of calendars) {
     const id = typeof cal === 'string' ? cal : cal.id;
-    const name = typeof cal === 'string' ? undefined : cal.name;
-
-    if (isTasksOnlyCalendarName(name)) {
-      tasksOnly.add(id);
-    } else if (withAny.has(id) && !withEvent.has(id)) {
+    if (withAny.has(id) && !withEvent.has(id)) {
       tasksOnly.add(id);
     }
   }

@@ -69,3 +69,89 @@ export async function mkCalendarCollection(opts: {
   });
   return response.status === 201;
 }
+
+/**
+ * Parses CalDAV multistatus PROPFIND XML response and extracts the
+ * supported-calendar-component-set for each collection.
+ */
+export function parseCalendarCollectionComponents(xml: string): Record<string, CalendarComponentType[]> {
+  const result: Record<string, CalendarComponentType[]> = {};
+  if (!xml || typeof xml !== 'string') return result;
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xml, 'application/xml');
+    const responses = doc.getElementsByTagNameNS('DAV:', 'response');
+
+    for (let i = 0; i < responses.length; i++) {
+      const resp = responses[i];
+      const hrefEl = resp.getElementsByTagNameNS('DAV:', 'href')[0];
+      if (!hrefEl?.textContent) continue;
+
+      const href = decodeURIComponent(hrefEl.textContent).replace(/\/+$/, '');
+      const segments = href.split('/').filter(Boolean);
+      // Format is typically /dav/cal/{user}/{collectionId}
+      // If segments length <= 3 (e.g. ['dav', 'cal', 'user']), it's the root directory
+      if (segments.length < 4) continue;
+
+      const collectionId = segments[segments.length - 1];
+      if (!collectionId) continue;
+
+      const compNodes = resp.getElementsByTagNameNS('urn:ietf:params:xml:ns:caldav', 'comp');
+      if (compNodes && compNodes.length > 0) {
+        const comps: CalendarComponentType[] = [];
+        for (let j = 0; j < compNodes.length; j++) {
+          const name = compNodes[j].getAttribute('name')?.toUpperCase();
+          if (name === 'VEVENT' || name === 'VTODO' || name === 'VJOURNAL') {
+            comps.push(name as CalendarComponentType);
+          }
+        }
+        if (comps.length > 0) {
+          result[collectionId] = comps;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to parse CalDAV calendar components XML:', error);
+  }
+
+  return result;
+}
+
+/**
+ * Fetches the supported-calendar-component-set for all calendar collections
+ * from Stalwart's CalDAV endpoint via the /api/webdav proxy.
+ */
+export async function fetchCalendarCollectionComponents(): Promise<Record<string, CalendarComponentType[]>> {
+  try {
+    const response = await apiFetch('/api/webdav', {
+      method: 'POST',
+      headers: {
+        'X-WebDAV-Method': 'PROPFIND',
+        'X-WebDAV-Collection': 'cal',
+        'X-WebDAV-Path': '/',
+        'Depth': '1',
+        'Content-Type': 'application/xml; charset=utf-8',
+        ...getActiveAccountSlotHeaders(),
+      },
+      body: `<?xml version="1.0" encoding="utf-8"?>
+<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop>
+    <D:displayname/>
+    <D:resourcetype/>
+    <C:supported-calendar-component-set/>
+  </D:prop>
+</D:propfind>`,
+    });
+
+    if (response.status !== 207) {
+      return {};
+    }
+
+    const text = await response.text();
+    return parseCalendarCollectionComponents(text);
+  } catch {
+    return {};
+  }
+}
+
