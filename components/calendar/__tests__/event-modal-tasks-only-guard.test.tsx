@@ -29,8 +29,9 @@ vi.mock('@/stores/calendar-store', () => ({
   },
 }));
 
+const toastError = vi.fn();
 vi.mock('@/stores/toast-store', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: (...args: unknown[]) => toastError(...args) },
 }));
 
 describe('EventModal tasks-only & writable calendar guard (#1208)', () => {
@@ -63,5 +64,47 @@ describe('EventModal tasks-only & writable calendar guard (#1208)', () => {
 
     // Should NOT call onSave because the only calendar is task-only
     expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('tells the user why saving is blocked when editing an event whose calendar became tasks-only (#1208 review finding #6)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    // selectableCalendars always includes the event's own current calendar
+    // (so an in-place edit never blanks the select) even when it is no
+    // longer writable - handleSave's guard is the only thing stopping the
+    // save in that case, and it must tell the user why nothing happened.
+    const calendars = [
+      {
+        id: 'cal-now-tasks-only',
+        name: 'Was Termine, jetzt Aufgaben',
+        isTasksOnly: true,
+        isShared: false,
+        myRights: { mayWriteAll: true, mayWriteOwn: true },
+      },
+    ] as unknown as Calendar[];
+
+    render(
+      <EventModal
+        calendars={calendars}
+        event={{
+          id: 'ev-1',
+          title: 'Altes Meeting',
+          calendarIds: { 'cal-now-tasks-only': true },
+          start: '2026-09-20T10:00:00',
+          duration: 'PT1H',
+        } as never}
+        defaultDate={new Date('2026-09-20T10:00:00Z')}
+        onSave={onSave}
+        onClose={vi.fn()}
+        currentUserEmails={['user@example.com']}
+      />
+    );
+
+    // Existing event with edit rights on the account renders a detail view
+    // with an explicit edit toggle first.
+    fireEvent.click(screen.getByText('events.edit'));
+    fireEvent.click(screen.getByText('form.save'));
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalled();
   });
 });
