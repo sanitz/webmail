@@ -668,6 +668,14 @@ export interface Calendar {
   // hidden from the event calendar UI while remaining available to the tasks
   // view (#761). Undefined means "not determined" (treated as not tasks-only).
   isTasksOnly?: boolean;
+  // True when this fetch's `isTasksOnly` value is backed by hard evidence
+  // (CalDAV supported-calendar-component-set, or a content-scan that found
+  // at least one real event or task object) rather than "no evidence either
+  // way, defaulted to false" (e.g. an empty, never-scanned calendar). Lets
+  // callers distinguish a real "this is not a task calendar" from "we
+  // couldn't tell this time" so a sticky classification isn't overwritten
+  // by an inconclusive scan, but IS corrected by a conclusive one (#1208).
+  isTasksOnlyConfirmed?: boolean;
 }
 
 /**
