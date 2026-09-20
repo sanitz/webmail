@@ -6670,16 +6670,11 @@ export class JMAPClient implements IJMAPClient {
     const primaryId = this.getCalendarsAccountId();
     const accountIds = this.getCalendarCapableAccountIds();
 
-    // Fetch CalDAV component set once per call rather than re-querying
-    // sequentially for each account (#1208).
-    let cachedDavComponents: Record<string, CalendarComponentType[]> | undefined;
-    try {
-      cachedDavComponents = await fetchCalendarCollectionComponents(
-        getAccountSlotHeadersFor(this.username, this.serverUrl),
-      );
-    } catch {
-      cachedDavComponents = undefined;
-    }
+    // Fetch CalDAV component set in parallel with the first Calendar/get
+    // so first-touch ordering is preserved on the wire (#907, #1208).
+    const davComponentsPromise = fetchCalendarCollectionComponents(
+      getAccountSlotHeadersFor(this.username, this.serverUrl),
+    ).catch(() => undefined);
 
     for (const accountId of accountIds) {
       const isPrimary = accountId === primaryId;
@@ -6699,6 +6694,7 @@ export class JMAPClient implements IJMAPClient {
         }
 
         const rawCalendars = (result.list || []) as Calendar[];
+        const cachedDavComponents = await davComponentsPromise;
         const tasksOnly = await this.getTasksOnlyCalendarIds(accountId, rawCalendars, cachedDavComponents);
         const calendars = rawCalendars.map((cal) => ({
           ...cal,

@@ -557,6 +557,7 @@ interface SettingsState {
   // Calendar Tasks
   enableCalendarTasks: boolean;
   showTasksOnCalendar: boolean;
+  taskCalendarIds: Record<string, boolean>;
 
   // Contact Birthday Calendar
   showBirthdayCalendar: boolean;
@@ -829,8 +830,9 @@ const DEFAULT_SETTINGS = {
   calendarWorkingDays: [1, 2, 3, 4, 5] as number[],
 
   // Calendar Tasks
-  enableCalendarTasks: false,
+  enableCalendarTasks: true,
   showTasksOnCalendar: true,
+  taskCalendarIds: {} as Record<string, boolean>,
 
   // Contact Birthday Calendar
   showBirthdayCalendar: false,
@@ -1084,6 +1086,7 @@ export const useSettingsStore = create<SettingsState>()(
           calendarInvitationParsingEnabled: state.calendarInvitationParsingEnabled,
           enableCalendarTasks: state.enableCalendarTasks,
           showTasksOnCalendar: state.showTasksOnCalendar,
+          taskCalendarIds: state.taskCalendarIds,
           showBirthdayCalendar: state.showBirthdayCalendar,
           birthdayCalendarColor: state.birthdayCalendarColor,
           sharedCalendarColors: state.sharedCalendarColors,
@@ -1280,6 +1283,12 @@ export const useSettingsStore = create<SettingsState>()(
                   merged[opts.serverAccountId] = incoming[opts.serverAccountId];
                 }
                 put(key, { [key]: merged });
+                return;
+              }
+              if (key === 'taskCalendarIds') {
+                const existing = get().taskCalendarIds || {};
+                const incoming = (settings.taskCalendarIds as Record<string, boolean>) || {};
+                put(key, { taskCalendarIds: { ...existing, ...incoming } });
                 return;
               }
               put(key, { [key]: settings[key] });
