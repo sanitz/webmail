@@ -15,6 +15,7 @@ import { normalizeCalendarEventLike, parseDurationSeconds } from "@/lib/calendar
 import { SYNTHETIC_ID_PROBE, RECURRENCE_BASE_PROPERTIES, hydrateRecurrenceInstances, isServerRecurrenceInstance } from "@/lib/recurrence-instances";
 import { isTaskLikeObject, type ScannedCalendarObject } from "@/lib/calendar-component-detection";
 import { DEFAULT_CALENDAR_COMPONENTS, mkCalendarCollection, newCalendarCollectionName, fetchCalendarCollectionComponents } from "@/lib/webdav/calendar-collection";
+import { getAccountSlotHeadersFor } from "@/lib/auth/active-account-slot";
 import { sanitizeDisplayName, splitMailbox } from "@/lib/rfc5322-mailbox";
 import { decodeFileNodeName } from "./filenode-name";
 import { fileNodeKind, fromDraftFileNode, toDraftFileNodeCreate } from "./filenode-kind";
@@ -8036,9 +8037,15 @@ export class JMAPClient implements IJMAPClient {
     const tasksOnly = new Set<string>();
     const calendarsToScan: string[] = [];
 
-    // 1. Try querying CalDAV collection component properties directly from Stalwart
+    // 1. Try querying CalDAV collection component properties directly from Stalwart.
+    // Pinned to *this* client's own account/cookie-slot, not whichever account is
+    // currently focused in the UI - this method runs per-account when scanning
+    // every configured mailbox, and the active-account slot would otherwise point
+    // the PROPFIND at the wrong mailbox for every non-active account (#1208).
     try {
-      const davComponents = await fetchCalendarCollectionComponents();
+      const davComponents = await fetchCalendarCollectionComponents(
+        getAccountSlotHeadersFor(this.username, this.serverUrl),
+      );
       for (const id of allCalendarIds) {
         const comps = davComponents[id];
         if (comps && comps.length > 0) {
