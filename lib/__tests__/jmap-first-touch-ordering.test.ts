@@ -72,7 +72,11 @@ describe('JMAPClient first-touch ordering (#907)', () => {
     await client.connect();
     // Every API call from here on is parked until the test releases it, in the
     // order it reached the (mock) network.
-    fetchSpy.mockImplementation((_url: string, init?: RequestInit) => {
+    fetchSpy.mockImplementation((url: string | URL | Request, init?: RequestInit) => {
+      const urlStr = String(url);
+      if (urlStr.includes('/api/webdav')) {
+        return Promise.resolve(new Response('', { status: 404 }));
+      }
       const body = JSON.parse(String(init?.body ?? '{}')) as { methodCalls?: [string][] };
       return new Promise<Response>((resolve) => {
         onWire.push({

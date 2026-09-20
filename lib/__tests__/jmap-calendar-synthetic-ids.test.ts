@@ -74,7 +74,11 @@ describe('server-side recurrence expansion with synthetic ids', () => {
     await client.connect();
     fetchSpy.mockReset();
 
-    fetchSpy.mockImplementation(async (_url: RequestInfo | URL, init?: RequestInit) => {
+    fetchSpy.mockImplementation(async (url: RequestInfo | URL, init?: RequestInit) => {
+      const urlStr = String(url);
+      if (urlStr.includes('/api/webdav')) {
+        return new Response('', { status: 404 });
+      }
       const body = JSON.parse(String(init?.body ?? '{}'));
       const methodResponses: unknown[] = [];
       for (const [method, args, callId] of body.methodCalls ?? []) {
@@ -143,7 +147,8 @@ describe('server-side recurrence expansion with synthetic ids', () => {
     // zone check, unless the zone is UTC); the range query then already knew
     // the verdict and asked for server-side expansion.
     expect(probes()).toHaveLength(1);
-    const firstRequest = JSON.parse(String((fetchSpy.mock.calls[0][1] as RequestInit).body));
+    const jmapCall = fetchSpy.mock.calls.find((c: unknown[]) => !String(c[0]).includes('/api/webdav'))!;
+    const firstRequest = JSON.parse(String((jmapCall[1] as RequestInit).body));
     expect(firstRequest.methodCalls.map((c: unknown[]) => c[0]).slice(0, 2)).toEqual(['Calendar/get', 'CalendarEvent/set']);
     expect(queries()[0].args.expandRecurrences).toBe(true);
     expect(events.map((e) => e.id)).toEqual(['maaaaab', 'eaaaaad']);
