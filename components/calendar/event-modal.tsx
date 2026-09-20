@@ -269,10 +269,15 @@ export function EventModal({
   const handleStartDateChange = (v: string) => { setStartDate(v); shiftEndKeepingDuration(v, startTime); };
   const handleStartTimeChange = (v: string) => { setStartTime(v); shiftEndKeepingDuration(startDate, v); };
   const [calendarId, setCalendarId] = useState<string>(() => {
-    if (event?.calendarIds) return getPrimaryCalendarId(event) || calendars[0]?.id || "";
-    if (defaultCalendarId && calendars.some(c => c.id === defaultCalendarId)) return defaultCalendarId;
-    const defaultCal = calendars.find(c => c.isDefault);
-    // Never default new events into a subscription / read-only calendar (#762).
+    if (event?.calendarIds) {
+      const primary = getPrimaryCalendarId(event);
+      if (primary) return primary;
+    }
+    if (defaultCalendarId && calendars.some(c => c.id === defaultCalendarId && canCreateEventsIn(c, isSubscriptionCalendar))) {
+      return defaultCalendarId;
+    }
+    const defaultCal = calendars.find(c => c.isDefault && canCreateEventsIn(c, isSubscriptionCalendar));
+    // Never default new events into a subscription / read-only / tasks-only calendar (#762, #1208).
     return defaultCal?.id
       || calendars.find(c => canCreateEventsIn(c, isSubscriptionCalendar))?.id
       || calendars[0]?.id || "";
@@ -281,8 +286,8 @@ export function EventModal({
   // Calendars offered as create/move targets: writable, non-subscription, plus
   // the event's current calendar so an in-place edit never blanks the select.
   const selectableCalendars = useMemo(
-    () => calendars.filter(c => canCreateEventsIn(c, isSubscriptionCalendar) || c.id === calendarId),
-    [calendars, isSubscriptionCalendar, calendarId]
+    () => calendars.filter(c => canCreateEventsIn(c, isSubscriptionCalendar) || (event?.id && c.id === calendarId)),
+    [calendars, isSubscriptionCalendar, calendarId, event?.id]
   );
   const [recurrence, setRecurrence] = useState<RecurrenceOption>(() => {
     if (!event?.recurrenceRules?.length) return "none";
