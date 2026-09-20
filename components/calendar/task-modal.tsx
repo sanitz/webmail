@@ -82,7 +82,11 @@ export function TaskModal({
   const [calendarId, setCalendarId] = useState(() => {
     if (task) {
       const ids = Object.keys(task.calendarIds);
-      return ids[0] ?? defaultCalendarId;
+      const rawId = ids[0];
+      if (rawId) {
+        const match = calendars.find(c => c.id === rawId || c.originalId === rawId);
+        return match?.id ?? rawId;
+      }
     }
     return defaultCalendarId;
   });
@@ -138,6 +142,12 @@ export function TaskModal({
 
   const handleSave = useCallback(async () => {
     if (!title.trim()) return;
+    const selectedCal = calendars.find(c => c.id === calendarId || c.originalId === calendarId);
+    const targetId = selectedCal?.originalId || selectedCal?.id || calendarId;
+    if (!targetId) return;
+    if (selectedCal && !writableCalendars.some(c => c.id === selectedCal.id || (c.originalId && c.originalId === selectedCal.originalId))) {
+      return;
+    }
     setSaving(true);
     try {
       let due: string | null = null;
@@ -160,7 +170,7 @@ export function TaskModal({
         showWithoutTime,
         priority: levelToPriority(priority),
         progress,
-        calendarIds: { [calendarId]: true },
+        calendarIds: { [targetId]: true },
       };
 
       if (alertTouched) {

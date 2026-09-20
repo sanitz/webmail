@@ -8027,7 +8027,11 @@ export class JMAPClient implements IJMAPClient {
    * by maxObjectsInGet. Past the per-calendar cap, on a failed query or on any
    * error the calendar is left visible (fail open). Empty calendars stay visible.
    */
-  private async getTasksOnlyCalendarIds(accountId: string, calendars: Calendar[] | string[]): Promise<Set<string>> {
+  private async getTasksOnlyCalendarIds(
+    accountId: string,
+    calendars: Calendar[] | string[],
+    cachedDavComponents?: Record<string, CalendarComponentType[]>,
+  ): Promise<Set<string>> {
     if (calendars.length === 0) return new Set();
 
     const allCalendarIds: string[] = calendars.map((c) =>
@@ -8043,7 +8047,7 @@ export class JMAPClient implements IJMAPClient {
     // every configured mailbox, and the active-account slot would otherwise point
     // the PROPFIND at the wrong mailbox for every non-active account (#1208).
     try {
-      const davComponents = await fetchCalendarCollectionComponents(
+      const davComponents = cachedDavComponents ?? await fetchCalendarCollectionComponents(
         getAccountSlotHeadersFor(this.username, this.serverUrl),
       );
       for (const id of allCalendarIds) {
@@ -8161,6 +8165,17 @@ export class JMAPClient implements IJMAPClient {
     const primaryId = this.getCalendarsAccountId();
     const accountIds = this.getCalendarCapableAccountIds();
 
+    // Fetch CalDAV component set once per call rather than re-querying
+    // sequentially for each account (#1208).
+    let cachedDavComponents: Record<string, CalendarComponentType[]> | undefined;
+    try {
+      cachedDavComponents = await fetchCalendarCollectionComponents(
+        getAccountSlotHeadersFor(this.username, this.serverUrl),
+      );
+    } catch {
+      cachedDavComponents = undefined;
+    }
+
     for (const accountId of accountIds) {
       const isPrimary = accountId === primaryId;
       if (!isPrimary && this.calendarAccessDenied.has(accountId)) continue;
@@ -8179,7 +8194,7 @@ export class JMAPClient implements IJMAPClient {
         }
 
         const rawCalendars = (result.list || []) as Calendar[];
-        const tasksOnly = await this.getTasksOnlyCalendarIds(accountId, rawCalendars);
+        const tasksOnly = await this.getTasksOnlyCalendarIds(accountId, rawCalendars, cachedDavComponents);
         const calendars = rawCalendars.map((cal) => ({
           ...cal,
           id: isPrimary ? cal.id : `${accountId}:${cal.id}`,
