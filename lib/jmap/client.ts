@@ -6615,8 +6615,12 @@ export class JMAPClient implements IJMAPClient {
 
       if (response.methodResponses?.[0]?.[0] === "Calendar/get") {
         const calendars = (response.methodResponses[0][1].list || []) as Calendar[];
-        const tasksOnly = await this.getTasksOnlyCalendarIds(accountId, calendars);
-        return calendars.map((cal) => ({ ...cal, isTasksOnly: tasksOnly.has(cal.id) }));
+        const { tasksOnly, confirmed } = await this.getTasksOnlyCalendarIds(accountId, calendars);
+        return calendars.map((cal) => ({
+          ...cal,
+          isTasksOnly: tasksOnly.has(cal.id),
+          isTasksOnlyConfirmed: confirmed.has(cal.id),
+        }));
       }
       return [];
     } catch (error) {
@@ -6642,14 +6646,19 @@ export class JMAPClient implements IJMAPClient {
     accountId: string,
     calendars: Calendar[] | string[],
     cachedDavComponents?: Record<string, CalendarComponentType[]>,
-  ): Promise<Set<string>> {
-    if (calendars.length === 0) return new Set();
+  ): Promise<{ tasksOnly: Set<string>; confirmed: Set<string> }> {
+    if (calendars.length === 0) return { tasksOnly: new Set(), confirmed: new Set() };
 
     const allCalendarIds: string[] = calendars.map((c) =>
       typeof c === 'string' ? c : c.id
     );
 
     const tasksOnly = new Set<string>();
+    // Ids whose classification this run is backed by hard evidence (CalDAV
+    // component-set, or a content-scan that actually found an object) - as
+    // opposed to "no evidence either way, defaulted to false". Only a
+    // confirmed result may override a persisted sticky flag (#1208 review).
+    const confirmed = new Set<string>();
     const calendarsToScan: string[] = [];
 
     // 1. Try querying CalDAV collection component properties directly from Stalwart.
@@ -6664,6 +6673,7 @@ export class JMAPClient implements IJMAPClient {
       for (const id of allCalendarIds) {
         const comps = davComponents[id];
         if (comps && comps.length > 0) {
+          confirmed.add(id);
           if (comps.includes('VTODO') && !comps.includes('VEVENT')) {
             tasksOnly.add(id);
           }
@@ -6677,7 +6687,7 @@ export class JMAPClient implements IJMAPClient {
       calendarsToScan.push(...allCalendarIds);
     }
 
-    if (calendarsToScan.length === 0) return tasksOnly;
+    if (calendarsToScan.length === 0) return { tasksOnly, confirmed };
 
     const QUERY_PAGE = 200;
     const MAX_SCAN_PER_CALENDAR = 5000; // safety bound; beyond this we fail open
@@ -6748,9 +6758,9 @@ export class JMAPClient implements IJMAPClient {
         pending = next;
       }
 
-      return tasksOnly;
+      return { tasksOnly, confirmed };
     } catch {
-      return tasksOnly; // preserve CalDAV-detected task calendars
+      return { tasksOnly, confirmed }; // preserve CalDAV-detected task calendars
     }
   }
 
@@ -6801,7 +6811,7 @@ export class JMAPClient implements IJMAPClient {
 
         const rawCalendars = (result.list || []) as Calendar[];
         const cachedDavComponents = await davComponentsPromise;
-        const tasksOnly = await this.getTasksOnlyCalendarIds(accountId, rawCalendars, cachedDavComponents);
+        const { tasksOnly, confirmed } = await this.getTasksOnlyCalendarIds(accountId, rawCalendars, cachedDavComponents);
         const calendars = rawCalendars.map((cal) => ({
           ...cal,
           id: isPrimary ? cal.id : `${accountId}:${cal.id}`,
@@ -6810,6 +6820,7 @@ export class JMAPClient implements IJMAPClient {
           accountName: account?.name || (isPrimary ? this.username : accountId),
           isShared: !isPrimary,
           isTasksOnly: tasksOnly.has(cal.id),
+          isTasksOnlyConfirmed: confirmed.has(cal.id),
         }));
         allCalendars.push(...calendars);
       } catch (error) {

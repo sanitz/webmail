@@ -128,4 +128,115 @@ describe('JMAPClient getTasksOnlyCalendarIds chunking & detection (#1208)', () =
     expect(workCal?.isTasksOnly).toBe(false);
     expect(taskCal?.isTasksOnly).toBe(true);
   });
+
+  it('does not misclassify a mixed calendar as tasks-only when one of several CalendarEvent/get chunks fails (#1208 review)', async () => {
+    // cal-mixed has 149 tasks + 1 real event = 150 objects, so the CHUNK_SIZE=100 loop
+    // splits the fetch into two CalendarEvent/get calls. The real event is placed in the
+    // second chunk, which the mock fails with a server error response.
+    const taskIds = Array.from({ length: 149 }, (_, i) => `task-mix-${i}`);
+    const eventId = 'event-mix-real';
+    const allIds = [...taskIds, eventId];
+
+    fetchSpy.mockImplementation(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      const methodCalls = body.methodCalls as [string, Record<string, unknown>, string][];
+
+      const calGet = methodCalls.find((m) => m[0] === 'Calendar/get');
+      if (calGet) {
+        return jsonResponse({
+          methodResponses: [
+            ['Calendar/get', { list: [{ id: 'cal-mixed', name: 'NurAufgaben' }] }, calGet[2]],
+          ],
+        });
+      }
+
+      if (methodCalls[0][0] === 'CalendarEvent/query') {
+        const responses = methodCalls.map(([, , tag]) => ['CalendarEvent/query', { ids: allIds }, tag]);
+        return jsonResponse({ methodResponses: responses });
+      }
+
+      if (methodCalls[0][0] === 'CalendarEvent/get') {
+        const ids = methodCalls[0][1].ids as string[];
+        if (ids.includes(eventId)) {
+          // Simulate a transient failure on the chunk holding the real event.
+          return jsonResponse({
+            methodResponses: [['error', { type: 'serverFail', description: 'transient' }, methodCalls[0][2]]],
+          });
+        }
+        const list = ids.map((id) => ({ id, '@type': 'Task', calendarIds: { 'cal-mixed': true } }));
+        return jsonResponse({ methodResponses: [['CalendarEvent/get', { list }, methodCalls[0][2]]] });
+      }
+
+      return jsonResponse({ methodResponses: [] });
+    });
+
+    const calendars = await client.getAllCalendars();
+    const mixedCal = calendars.find((c) => c.id === 'cal-mixed');
+
+    // The calendar genuinely contains an event, but that object lives in the failed
+    // chunk. Classifying it as tasks-only on the surviving partial data would hide a
+    // real event calendar from the event view and block event creation in it.
+    expect(mixedCal?.isTasksOnly).toBe(false);
+  });
+
+  it('marks isTasksOnlyConfirmed only for calendars with real scan evidence, not for an empty unscanned calendar (#1208 review)', async () => {
+    fetchSpy.mockImplementation(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      const methodCalls = body.methodCalls as [string, Record<string, unknown>, string][];
+
+      const calGet = methodCalls.find((m) => m[0] === 'Calendar/get');
+      if (calGet) {
+        return jsonResponse({
+          methodResponses: [
+            ['Calendar/get', {
+              list: [
+                { id: 'cal-empty', name: 'FrischAngelegt' },
+                { id: 'cal-has-event', name: 'Termine' },
+                { id: 'cal-has-tasks', name: 'NurAufgaben' },
+              ],
+            }, calGet[2]],
+          ],
+        });
+      }
+
+      if (methodCalls[0][0] === 'CalendarEvent/query') {
+        const responses = methodCalls.map(([, args, tag]) => {
+          const filter = args.filter as Record<string, string> | undefined;
+          const calId = filter?.inCalendar;
+          let ids: string[] = [];
+          if (calId === 'cal-has-event') ids = ['ev-1'];
+          else if (calId === 'cal-has-tasks') ids = ['task-1'];
+          return ['CalendarEvent/query', { ids }, tag];
+        });
+        return jsonResponse({ methodResponses: responses });
+      }
+
+      if (methodCalls[0][0] === 'CalendarEvent/get') {
+        const ids = methodCalls[0][1].ids as string[];
+        const list = ids.map((id) =>
+          id.startsWith('task-')
+            ? { id, '@type': 'Task', calendarIds: { 'cal-has-tasks': true } }
+            : { id, '@type': 'Event', calendarIds: { 'cal-has-event': true } }
+        );
+        return jsonResponse({ methodResponses: [['CalendarEvent/get', { list }, methodCalls[0][2]]] });
+      }
+
+      return jsonResponse({ methodResponses: [] });
+    });
+
+    const calendars = await client.getAllCalendars();
+    const emptyCal = calendars.find((c) => c.id === 'cal-empty');
+    const eventCal = calendars.find((c) => c.id === 'cal-has-event');
+    const taskCal = calendars.find((c) => c.id === 'cal-has-tasks');
+
+    // No objects at all were ever scanned for cal-empty, so nothing confirms
+    // it either way - a sticky flag from a previous fetch must still be able
+    // to override this "not determined" result.
+    expect(emptyCal?.isTasksOnlyConfirmed).toBeFalsy();
+    // Real evidence was found for the other two, so their result is authoritative.
+    expect(eventCal?.isTasksOnly).toBe(false);
+    expect(eventCal?.isTasksOnlyConfirmed).toBe(true);
+    expect(taskCal?.isTasksOnly).toBe(true);
+    expect(taskCal?.isTasksOnlyConfirmed).toBe(true);
+  });
 });
