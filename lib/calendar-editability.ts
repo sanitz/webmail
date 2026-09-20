@@ -18,9 +18,10 @@ export interface EditabilityContext {
  * calendars with writable myRights, so the flag must be checked too (issue #762).
  */
 export function canCreateEventsIn(
-  calendar: Pick<Calendar, 'id' | 'myRights'>,
+  calendar: Pick<Calendar, 'id' | 'myRights' | 'isTasksOnly'>,
   isSubscriptionCalendar?: (calendarId: string) => boolean,
 ): boolean {
+  if (calendar.isTasksOnly) return false;
   if (isSubscriptionCalendar?.(calendar.id)) return false;
   const r = calendar.myRights;
   return !r || r.mayWriteAll || r.mayWriteOwn;

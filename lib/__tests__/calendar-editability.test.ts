@@ -123,6 +123,9 @@ describe('canCreateEventsIn (issue #762)', () => {
   it('rejects an iCal subscription even when its Stalwart rights are writable', () => {
     expect(canCreateEventsIn({ id: 'sub', myRights: ALL_RIGHTS }, sub)).toBe(false);
   });
+  it('rejects a tasks-only calendar (#1208)', () => {
+    expect(canCreateEventsIn({ id: 'tasks', isTasksOnly: true, myRights: ALL_RIGHTS }, sub)).toBe(false);
+  });
   it('is permissive when myRights is absent (local/birthday calendars)', () => {
     expect(canCreateEventsIn({ id: 'c', myRights: undefined as never }, sub)).toBe(true);
   });
