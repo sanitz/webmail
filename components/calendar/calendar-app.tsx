@@ -71,6 +71,7 @@ import { getEventDisplayEndDate, getEventEndDate, getEventStartDate } from "@/li
 import { displayNow, getEffectiveTimeZone } from "@/lib/timezone";
 import { canCreateEventsIn, getEventEditability, type EditabilityContext } from "@/lib/calendar-editability";
 import { QuickCreatePopover, type QuickCreateDraft } from "@/components/calendar/quick-create-popover";
+import { filterTasksBySelectedCalendars } from "@/lib/task-visibility";
 import { TASKS_LOAD_ERROR, useTaskStore } from "@/stores/task-store";
 import { useContactStore } from "@/stores/contact-store";
 import { cn, generateUUID } from "@/lib/utils";
@@ -1786,16 +1787,16 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
   const pluginTaskView = usePluginTaskView();
   // The tasks the task list shows; plugin buttons in its toolbar act on them.
   const listedTaskIds = useMemo(
-    () => filterTasksForList(taskStore.tasks, selectedCalendarIds, taskStore.filter).map((task) => task.id),
-    [taskStore.tasks, selectedCalendarIds, taskStore.filter],
+    () => filterTasksForList(taskStore.tasks, selectedCalendarIds, taskStore.filter, taskStore.showCompleted, displayCalendars).map((task) => task.id),
+    [taskStore.tasks, selectedCalendarIds, taskStore.filter, taskStore.showCompleted, displayCalendars],
   );
 
   // Tasks on the month, week and day grids follow the calendar filter like
-  // the events do (#1107).
+  // the events do (#1107, #1208).
   const calendarTasks = useMemo(() => {
     if (!enableCalendarTasks || !showTasksOnCalendar) return undefined;
-    return filterTasksByCalendars(taskStore.tasks, selectedCalendarIds);
-  }, [enableCalendarTasks, showTasksOnCalendar, taskStore.tasks, selectedCalendarIds]);
+    return filterTasksBySelectedCalendars(taskStore.tasks, selectedCalendarIds, displayCalendars);
+  }, [enableCalendarTasks, showTasksOnCalendar, taskStore.tasks, selectedCalendarIds, displayCalendars]);
 
   useEffect(() => {
     const hiddenEvents = events.filter((event) => {
@@ -2020,7 +2021,8 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
                   toast.error(t("notifications.task_save_error"));
                   return;
                 }
-                taskStore.createTask(client, { "@type": "Task", title, progress: "needs-action", calendarIds: { [target.id]: true } })
+                const targetId = target.originalId || target.id;
+                taskStore.createTask(client, { "@type": "Task", title, progress: "needs-action", calendarIds: { [targetId]: true } })
                   .then((created) => { if (created) toast.success(t("notifications.task_created")); })
                   .catch((error: unknown) => toast.error(describeError(error, t("notifications.task_save_error"))));
               }}

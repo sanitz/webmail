@@ -115,6 +115,35 @@ describe('parseCalendarCollectionComponents', () => {
     expect(map['cal-tasks']).toEqual(['VTODO']);
     expect(map['sebastian']).toBeUndefined(); // Root is skipped
   });
+
+  it('parses calendar collections even with short paths (e.g. /cal/user/colId) when resourcetype is calendar (#1208)', () => {
+    const xml = `<?xml version="1.0" encoding="utf-8"?>
+<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:response>
+    <D:href>/cal/user/</D:href>
+    <D:propstat>
+      <D:prop><D:resourcetype><D:collection/></D:resourcetype></D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+  <D:response>
+    <D:href>/cal/user/short-path-tasks/</D:href>
+    <D:propstat>
+      <D:prop>
+        <D:resourcetype><D:collection/><C:calendar/></D:resourcetype>
+        <C:supported-calendar-component-set>
+          <C:comp name="VTODO"/>
+        </C:supported-calendar-component-set>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+</D:multistatus>`;
+
+    const map = parseCalendarCollectionComponents(xml);
+    expect(map['short-path-tasks']).toEqual(['VTODO']);
+    expect(map['user']).toBeUndefined();
+  });
 });
 
 describe('fetchCalendarCollectionComponents', () => {

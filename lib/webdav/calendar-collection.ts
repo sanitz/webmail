@@ -88,27 +88,31 @@ export function parseCalendarCollectionComponents(xml: string): Record<string, C
       const hrefEl = resp.getElementsByTagNameNS('DAV:', 'href')[0];
       if (!hrefEl?.textContent) continue;
 
+      const compNodes = resp.getElementsByTagNameNS('urn:ietf:params:xml:ns:caldav', 'comp');
+      if (!compNodes || compNodes.length === 0) continue;
+
       const href = decodeURIComponent(hrefEl.textContent).replace(/\/+$/, '');
       const segments = href.split('/').filter(Boolean);
-      // Format is typically /dav/cal/{user}/{collectionId}
-      // If segments length <= 3 (e.g. ['dav', 'cal', 'user']), it's the root directory
-      if (segments.length < 4) continue;
+      if (segments.length === 0) continue;
+
+      const resTypeNode = resp.getElementsByTagNameNS('DAV:', 'resourcetype')[0];
+      const hasCalendarType = Boolean(resTypeNode?.getElementsByTagNameNS('urn:ietf:params:xml:ns:caldav', 'calendar').length);
+
+      // Skip root directories if they have fewer than 3 segments and lack calendar resourcetype
+      if (segments.length < 3 && !hasCalendarType) continue;
 
       const collectionId = segments[segments.length - 1];
       if (!collectionId) continue;
 
-      const compNodes = resp.getElementsByTagNameNS('urn:ietf:params:xml:ns:caldav', 'comp');
-      if (compNodes && compNodes.length > 0) {
-        const comps: CalendarComponentType[] = [];
-        for (let j = 0; j < compNodes.length; j++) {
-          const name = compNodes[j].getAttribute('name')?.toUpperCase();
-          if (name === 'VEVENT' || name === 'VTODO' || name === 'VJOURNAL') {
-            comps.push(name as CalendarComponentType);
-          }
+      const comps: CalendarComponentType[] = [];
+      for (let j = 0; j < compNodes.length; j++) {
+        const name = compNodes[j].getAttribute('name')?.toUpperCase();
+        if (name === 'VEVENT' || name === 'VTODO' || name === 'VJOURNAL') {
+          comps.push(name as CalendarComponentType);
         }
-        if (comps.length > 0) {
-          result[collectionId] = comps;
-        }
+      }
+      if (comps.length > 0) {
+        result[collectionId] = comps;
       }
     }
   } catch (error) {
