@@ -1942,8 +1942,8 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
                 selectedTaskId={taskStore.selectedTaskId}
                 onQuickCreate={(title) => {
                   // Into a calendar that takes it: the default one, else the
-                  // first the user may write to.
-                  const target = writableTaskCalendars.find((c) => c.isDefault) ?? writableTaskCalendars[0];
+                  // first the user may write to. Prefer task-only calendars.
+                  const target = writableTaskCalendars.find((c) => c.isTasksOnly) ?? writableTaskCalendars.find((c) => c.isDefault) ?? writableTaskCalendars[0];
                   if (!client || !target) {
                     toast.error(t("notifications.task_save_error"));
                     return;

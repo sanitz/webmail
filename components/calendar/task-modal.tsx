@@ -70,7 +70,7 @@ export function TaskModal({
   // The calendars a task can go into: not read-only ones (Birthdays,
   // feeds), the same rule as the event editor.
   const writableCalendars = calendars.filter((c) => canCreateEventsIn(c, isSubscriptionCalendar));
-  const defaultCalendarId = writableCalendars[0]?.id ?? calendars[0]?.id ?? "";
+  const defaultCalendarId = writableCalendars.find((c) => c.isTasksOnly)?.id ?? writableCalendars[0]?.id ?? calendars[0]?.id ?? "";
 
   const [title, setTitle] = useState(task?.title ?? "");
   const [description, setDescription] = useState(task?.description ?? "");
