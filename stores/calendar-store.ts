@@ -522,6 +522,19 @@ export function reconcileSelectedIds(
   return out;
 }
 
+/** Marks calendars persisted as tasks-only (settings sync) even when discovery did not (#1208). */
+function withPersistedTasksOnly(
+  calendars: Calendar[],
+  taskCalendarIds: Record<string, boolean> | undefined,
+): Calendar[] {
+  return calendars.map((c) => ({
+    ...c,
+    isTasksOnly: Boolean(
+      c.isTasksOnly || taskCalendarIds?.[c.id] || (c.originalId && taskCalendarIds?.[c.originalId]),
+    ),
+  }));
+}
+
 /**
  * The selection to keep after a calendars fetch: the reconciled one, or the
  * default when no real calendar is left in it. The virtual birthday calendar
@@ -871,6 +884,8 @@ interface CalendarStore {
   // iCal subscriptions
   icalSubscriptions: ICalSubscription[];
   deletedSubscriptionIds: Record<string, string>;
+  // Kalender-IDs, die explizit als reine Aufgabenlisten angelegt wurden (#1208)
+  taskCalendarIds: Record<string, boolean>;
   addICalSubscription: (client: IJMAPClient, url: string, name: string, color: string, refreshInterval?: number) => Promise<ICalSubscription | null>;
   updateICalSubscription: (client: IJMAPClient, subscriptionId: string, updates: { url?: string; name?: string; color?: string; refreshInterval?: number }) => Promise<void>;
   removeICalSubscription: (client: IJMAPClient, subscriptionId: string) => Promise<void>;
@@ -906,6 +921,7 @@ const initialState = {
   dateRange: null as { start: string; end: string } | null,
   icalSubscriptions: [] as ICalSubscription[],
   deletedSubscriptionIds: {} as Record<string, string>,
+  taskCalendarIds: {} as Record<string, boolean>,
 };
 
 function getSafeCalendarViewMode(value: unknown): CalendarViewMode {
@@ -954,7 +970,7 @@ export const useCalendarStore = create<CalendarStore>()(
           // list and the selection as they were.
           const { calendars: fetched, failedAccountIds } = await client.getAllCalendarsWithFailures();
           if (currentStoreEpoch() !== epoch) return;
-          const calendars = sortCalendars(fetched);
+          const calendars = sortCalendars(withPersistedTasksOnly(fetched, get().taskCalendarIds));
           // Default the visible selection to event calendars only - tasks-only
           // calendars stay out of the event grid.
           const defaultSelected = calendars.filter(c => !c.isTasksOnly).map(c => c.id);
@@ -1049,10 +1065,10 @@ export const useCalendarStore = create<CalendarStore>()(
                 unloadedPrefixes.push(prefix);
                 return [] as Calendar[];
               }
-            }),
+            })
           );
           if (currentStoreEpoch() !== epoch) return;
-          const calendars = sortCalendars(results.flat());
+          const calendars = sortCalendars(withPersistedTasksOnly(results.flat(), get().taskCalendarIds));
           const defaultSelected = calendars.map(c => c.id);
           set({
             calendars,
@@ -1587,15 +1603,20 @@ export const useCalendarStore = create<CalendarStore>()(
       createCalendar: async (client, calendar, options) => {
         set({ error: null });
         try {
+          const isTasksOnly = options?.components?.length === 1 && options.components[0] === 'VTODO';
           const created = await client.createCalendar(withNextSortOrder(client, get().calendars, calendar), undefined, options);
+          const augmented = isTasksOnly ? { ...created, isTasksOnly: true } : created;
           // Added with its raw id; the next aggregated refetch namespaces it and
           // reconcileSelectedIds() remaps the selection so it stays visible.
           set((state) => ({
-            calendars: sortCalendars([...state.calendars, created]),
-            selectedCalendarIds: [...state.selectedCalendarIds, created.id],
+            calendars: sortCalendars([...state.calendars, augmented]),
+            selectedCalendarIds: isTasksOnly ? state.selectedCalendarIds : [...state.selectedCalendarIds, created.id],
+            taskCalendarIds: isTasksOnly
+              ? { ...state.taskCalendarIds, [created.id]: true }
+              : state.taskCalendarIds,
           }));
           void calendarHooks.onCalendarChange.emit({ calendarId: created.id, change: 'created' });
-          return created;
+          return augmented;
         } catch (error) {
           debug.error('Failed to create calendar:', error);
           set({ error: 'Failed to create calendar' });
@@ -1611,11 +1632,17 @@ export const useCalendarStore = create<CalendarStore>()(
           const targetAccountId = cal?.accountId;
           client = resolveAccountClient(client, cal?.localAccountId);
           await client.deleteCalendar(realId, targetAccountId);
-          set((state) => ({
-            calendars: state.calendars.filter(c => c.id !== calendarId),
-            selectedCalendarIds: state.selectedCalendarIds.filter(id => id !== calendarId),
-            events: state.events.filter(e => !e.calendarIds?.[calendarId]),
-          }));
+          set((state) => {
+            const nextTaskCalendarIds = { ...(state.taskCalendarIds || {}) };
+            delete nextTaskCalendarIds[calendarId];
+            if (realId) delete nextTaskCalendarIds[realId];
+            return {
+              calendars: state.calendars.filter(c => c.id !== calendarId),
+              selectedCalendarIds: state.selectedCalendarIds.filter(id => id !== calendarId),
+              events: state.events.filter(e => !e.calendarIds?.[calendarId]),
+              taskCalendarIds: nextTaskCalendarIds,
+            };
+          });
           void calendarHooks.onCalendarChange.emit({ calendarId, change: 'removed' });
         } catch (error) {
           debug.error('Failed to delete calendar:', error);
@@ -2096,9 +2123,11 @@ export const useCalendarStore = create<CalendarStore>()(
         // here would lose them from localStorage on every switch.
         const preservedSubs = get().icalSubscriptions;
         const preservedTombstones = get().deletedSubscriptionIds;
+        const preservedTaskCalendarIds = get().taskCalendarIds;
         set({
           ...initialState,
           selectedDate: displayNow(),
+          taskCalendarIds: preservedTaskCalendarIds,
           icalSubscriptions: preservedSubs,
           deletedSubscriptionIds: preservedTombstones,
         });
@@ -2126,6 +2155,7 @@ export const useCalendarStore = create<CalendarStore>()(
         calendarSelectionChosen: state.calendarSelectionChosen,
         knownCalendarIds: state.knownCalendarIds,
         viewMode: state.viewMode,
+        taskCalendarIds: state.taskCalendarIds,
         icalSubscriptions: state.icalSubscriptions,
         deletedSubscriptionIds: state.deletedSubscriptionIds,
       }),
