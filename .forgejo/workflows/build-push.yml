@@ -28,14 +28,17 @@ jobs:
         env:
           REGISTRY_TOKEN: ${{ secrets.FJ_REGISTRY_TOKEN }}
           SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
           CONTAINER_HOST: unix:///run/podman/podman.sock
         run: |
           podman info
           echo "$REGISTRY_TOKEN" | podman login -u sebastian --password-stdin git.sanitz.net
+          IMAGE_TAG="${REF_NAME#deploy/}"
+          echo "Building image for tag: ${IMAGE_TAG} and sha: ${SHA}"
           podman build \
             --network=host \
-            -t git.sanitz.net/sebastian/bulwark-webmail-fork:1.10.0-ical-sync \
+            -t git.sanitz.net/sebastian/bulwark-webmail-fork:${IMAGE_TAG} \
             -t git.sanitz.net/sebastian/bulwark-webmail-fork:${SHA} \
             .
-          podman push git.sanitz.net/sebastian/bulwark-webmail-fork:1.10.0-ical-sync
+          podman push git.sanitz.net/sebastian/bulwark-webmail-fork:${IMAGE_TAG}
           podman push git.sanitz.net/sebastian/bulwark-webmail-fork:${SHA}
