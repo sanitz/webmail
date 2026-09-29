@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import type { CalendarTask } from "@/lib/jmap/types";
+import { findTaskOverride, occurrenceRecurrenceId, overridePatch } from "@/lib/calendar-tasks";
 import type { IJMAPClient } from "@/lib/jmap/client-interface";
 import type { RecurrenceEditScope } from "@/components/calendar/recurrence-scope-dialog";
 
@@ -51,7 +52,7 @@ export async function executeTaskScopeAction(
   const { task } = action;
   const masterId = task.originalId || (task.id.includes(":") ? task.id.split(":")[0] : task.id);
   const master = taskStore.tasks.find((t) => t.id === masterId) || task;
-  const occurrenceDate = task.recurrenceId || (task.due ? (task.showWithoutTime ? task.due.slice(0, 10) : task.due) : master.due);
+  const occurrenceDate = occurrenceRecurrenceId(task) ?? master.due;
 
   if (action.type === "edit_task") {
     const { updates } = action;
@@ -100,30 +101,23 @@ export async function executeTaskScopeAction(
         break;
       }
       case "this": {
-        const recKey = task.recurrenceId || (task.due ? (task.showWithoutTime ? task.due.slice(0, 10) : task.due) : null);
+        const recKey = occurrenceRecurrenceId(task);
         if (!recKey) {
           await taskStore.updateTask(client, master.id, updates);
           break;
         }
-        const existingOverrides = (master.recurrenceOverrides || {}) as Record<string, unknown>;
         const cleanUpdates: Record<string, unknown> = {};
         for (const [k, v] of Object.entries(updates)) {
           if (!OCCURRENCE_DROPPED_KEYS.has(k)) {
             cleanUpdates[k] = v;
           }
         }
-
-        const patchKey = `recurrenceOverrides/${recKey}`;
         const overrideEntry = {
-          ...((existingOverrides[recKey] as Record<string, unknown>) || {}),
+          ...findTaskOverride(master.recurrenceOverrides, recKey),
           ...cleanUpdates,
         };
 
-        const patch = (!master.recurrenceOverrides || Object.keys(master.recurrenceOverrides).length === 0)
-          ? { recurrenceOverrides: { [recKey]: overrideEntry } }
-          : { [patchKey]: overrideEntry };
-
-        await taskStore.updateTask(client, master.id, patch);
+        await taskStore.updateTask(client, master.id, overridePatch(master, recKey, overrideEntry));
         break;
       }
     }
@@ -151,23 +145,17 @@ export async function executeTaskScopeAction(
         break;
       }
       case "this": {
-        const recKey = task.recurrenceId || (task.due ? (task.showWithoutTime ? task.due.slice(0, 10) : task.due) : null);
+        const recKey = occurrenceRecurrenceId(task);
         if (!recKey) {
           await taskStore.deleteTask(client, master.id);
           break;
         }
-        const existingOverrides = (master.recurrenceOverrides || {}) as Record<string, unknown>;
-        const patchKey = `recurrenceOverrides/${recKey}`;
         const overrideEntry = {
-          ...((existingOverrides[recKey] as Record<string, unknown>) || {}),
+          ...findTaskOverride(master.recurrenceOverrides, recKey),
           excluded: true,
         };
 
-        const patch = (!master.recurrenceOverrides || Object.keys(master.recurrenceOverrides).length === 0)
-          ? { recurrenceOverrides: { [recKey]: overrideEntry } }
-          : { [patchKey]: overrideEntry };
-
-        await taskStore.updateTask(client, master.id, patch);
+        await taskStore.updateTask(client, master.id, overridePatch(master, recKey, overrideEntry));
         break;
       }
     }
