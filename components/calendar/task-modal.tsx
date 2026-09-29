@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, Trash2, CalendarDays, Bell, Flag } from "@/components/icons";
+import { X, Trash2, CalendarDays, Bell, Flag, Repeat, Pencil } from "@/components/icons";
 import { format, parseISO } from "date-fns";
+import { RecurrenceEditor, buildRecurrenceSummary, isSimpleRecurrenceRule } from "./recurrence-editor";
+import { createRecurrenceRule } from "@/lib/recurrence-rule";
 
-import type { CalendarTask, Calendar, CalendarEventAlert } from "@/lib/jmap/types";
+import type { CalendarTask, Calendar, CalendarEventAlert, CalendarRecurrenceRule } from "@/lib/jmap/types";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { taskToView } from "@/lib/plugin-projection";
 
@@ -23,6 +25,7 @@ interface TaskModalProps {
 
 type PriorityLevel = "none" | "high" | "medium" | "low";
 type AlertOption = "none" | "at_time" | "5" | "15" | "30" | "60" | "1440";
+type RecurrenceOption = "none" | "daily" | "weekly" | "monthly" | "yearly" | "custom";
 
 function priorityToLevel(p: number): PriorityLevel {
   if (p >= 1 && p <= 4) return "high";
@@ -49,6 +52,7 @@ export function TaskModal({
   isMobile: _isMobile,
 }: TaskModalProps) {
   const t = useTranslations("calendar");
+  const locale = useLocale();
   const isEdit = !!task;
   const titleRef = useRef<HTMLInputElement>(null);
   // task-detail-section: the saved task, for an existing task only.
@@ -75,6 +79,38 @@ export function TaskModal({
     }
     return defaultCalendarId;
   });
+
+  const [recurrence, setRecurrence] = useState<RecurrenceOption>(() => {
+    if (!task?.recurrenceRules?.length) return "none";
+    const rule = task.recurrenceRules[0];
+    return isSimpleRecurrenceRule(rule) ? (rule.frequency as RecurrenceOption) : "custom";
+  });
+  const [customRule, setCustomRule] = useState<CalendarRecurrenceRule | null>(() => {
+    if (!task?.recurrenceRules?.length) return null;
+    const rule = task.recurrenceRules[0];
+    return isSimpleRecurrenceRule(rule) ? null : rule;
+  });
+  const [showRecurrenceEditor, setShowRecurrenceEditor] = useState(false);
+  const recurrenceBeforeCustomRef = useRef<RecurrenceOption>("none");
+
+  const handleRecurrenceEditorSave = useCallback((rule: CalendarRecurrenceRule) => {
+    setCustomRule(rule);
+    setRecurrence("custom");
+    setShowRecurrenceEditor(false);
+  }, []);
+
+  const handleRecurrenceEditorCancel = useCallback(() => {
+    setShowRecurrenceEditor(false);
+    if (!customRule) {
+      setRecurrence(recurrenceBeforeCustomRef.current);
+    }
+  }, [customRule]);
+
+  const customRuleSummary = useMemo(
+    () => (customRule ? buildRecurrenceSummary(customRule, t, locale) : null),
+    [customRule, t, locale]
+  );
+
   const [alertOption, setAlertOption] = useState<AlertOption>(() => {
     if (!task?.alerts) return "none";
     const first = Object.values(task.alerts)[0];
@@ -132,6 +168,14 @@ export function TaskModal({
         calendarIds: { [targetId]: true },
       };
 
+      if (recurrence === "custom" && customRule) {
+        data.recurrenceRules = [customRule];
+      } else if (recurrence !== "none" && recurrence !== "custom") {
+        data.recurrenceRules = [createRecurrenceRule(recurrence)];
+      } else if (isEdit && task?.recurrenceRules?.length) {
+        data.recurrenceRules = null;
+      }
+
       if (alertTouched) {
         // Merge into the existing map: the control edits the first alert
         // (the one it displayed) and leaves any others untouched. (#504)
@@ -161,7 +205,7 @@ export function TaskModal({
     } finally {
       setSaving(false);
     }
-  }, [title, description, dueDate, dueTime, showTime, priority, progress, calendarId, alertOption, alertTouched, isEdit, task, onSave, onClose, calendars, writableCalendars]);
+  }, [title, description, dueDate, dueTime, showTime, priority, progress, calendarId, recurrence, customRule, alertOption, alertTouched, isEdit, task, onSave, onClose, calendars, writableCalendars]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -239,6 +283,64 @@ export function TaskModal({
               />
             )}
           </div>
+        </div>
+
+        {/* Recurrence */}
+        <div className="space-y-2">
+          <label htmlFor="task-recurrence-select" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            <Repeat className="h-3.5 w-3.5" />
+            {t("recurrence.title")}
+          </label>
+          <div className="flex items-center gap-2">
+            <select
+              id="task-recurrence-select"
+              aria-label={t("recurrence.title")}
+              value={recurrence}
+              onChange={(e) => {
+                const value = e.target.value as RecurrenceOption;
+                if (value === "custom") {
+                  recurrenceBeforeCustomRef.current = recurrence;
+                  setRecurrence("custom");
+                  setShowRecurrenceEditor(true);
+                } else {
+                  setRecurrence(value);
+                  setShowRecurrenceEditor(false);
+                }
+              }}
+              className="rounded-md border border-input bg-background px-3 py-1.5 text-sm w-full"
+            >
+              <option value="none">{t("recurrence.none")}</option>
+              <option value="daily">{t("recurrence.daily")}</option>
+              <option value="weekly">{t("recurrence.weekly")}</option>
+              <option value="monthly">{t("recurrence.monthly")}</option>
+              <option value="yearly">{t("recurrence.yearly")}</option>
+              <option value="custom">{customRuleSummary || t("recurrence.custom")}</option>
+            </select>
+            {recurrence === "custom" && !showRecurrenceEditor && (
+              <button
+                type="button"
+                onClick={() => setShowRecurrenceEditor(true)}
+                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label={t("recurrence.edit_custom")}
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {showRecurrenceEditor && (
+            <RecurrenceEditor
+              rule={customRule}
+              eventStart={(() => {
+                if (dueDate) {
+                  const d = parseISO(showTime && dueTime ? `${dueDate}T${dueTime}:00` : `${dueDate}T00:00:00`);
+                  if (!isNaN(d.getTime())) return d;
+                }
+                return new Date();
+              })()}
+              onSave={handleRecurrenceEditorSave}
+              onCancel={handleRecurrenceEditorCancel}
+            />
+          )}
         </div>
 
         {/* Priority */}
