@@ -12,6 +12,8 @@ import { createRecurrenceRule } from "@/lib/recurrence-rule";
 import type { CalendarTask, Calendar, CalendarEventAlert, CalendarRecurrenceRule } from "@/lib/jmap/types";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { taskToView } from "@/lib/plugin-projection";
+import { toast } from "@/stores/toast-store";
+import { debug } from "@/lib/debug";
 
 interface TaskModalProps {
   task?: CalendarTask | null;
@@ -202,10 +204,13 @@ export function TaskModal({
 
       if ((await onSave(data)) === false) return;
       onClose();
+    } catch (err) {
+      debug.error("Failed to save task:", err);
+      toast.error(t("notifications.event_error"));
     } finally {
       setSaving(false);
     }
-  }, [title, description, dueDate, dueTime, showTime, priority, progress, calendarId, recurrence, customRule, alertOption, alertTouched, isEdit, task, onSave, onClose, calendars, writableCalendars]);
+  }, [title, description, dueDate, dueTime, showTime, priority, progress, calendarId, recurrence, customRule, alertOption, alertTouched, isEdit, task, onSave, onClose, calendars, writableCalendars, t]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
