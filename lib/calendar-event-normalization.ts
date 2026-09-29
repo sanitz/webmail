@@ -78,10 +78,10 @@ export function isAllDayEventLike(event: Pick<Partial<CalendarEvent>, 'start' | 
  * Stalwart returns "recurrenceRule" (singular) instead of RFC 8984 "recurrenceRules" (plural).
  * Normalize server responses to match the client's internal type.
  */
-function normalizeStalwartPropertyNames<T extends Partial<CalendarEvent>>(event: T): T {
+export function normalizeStalwartPropertyNames<T extends Record<string, unknown>>(event: T): T {
   const raw = event as Record<string, unknown>;
   let patched = false;
-  const updates: Partial<CalendarEvent> = {};
+  const updates: Record<string, unknown> = {};
 
   if ('recurrenceRule' in raw && !('recurrenceRules' in raw)) {
     // JSCalendar 2.0 (jscalendarbis-15) defines recurrenceRule as a single object,

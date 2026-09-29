@@ -1,9 +1,11 @@
 import { create } from 'zustand';
+import { format, parseISO } from 'date-fns';
 import type { CalendarTask } from '@/lib/jmap/types';
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
 import { debug } from '@/lib/debug';
 import { taskHooks } from '@/lib/plugin-hooks';
 import { taskToView } from '@/lib/plugin-projection';
+import { getNextRecurrenceDate } from '@/lib/recurrence-expansion';
 
 export type TaskViewFilter = 'all' | 'pending' | 'completed' | 'overdue';
 
@@ -128,10 +130,42 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   toggleTaskComplete: async (client, task) => {
-    const newProgress = task.progress === 'completed' ? 'needs-action' : 'completed';
-    const updates: Partial<CalendarTask> = {
-      progress: newProgress,
-    };
+    let updates: Partial<CalendarTask>;
+
+    if (task.progress !== 'completed' && task.recurrenceRules?.length) {
+      const refDateStr = task.due || task.start;
+      const refDate = refDateStr ? parseISO(refDateStr) : new Date();
+      const nextDate = !isNaN(refDate.getTime())
+        ? getNextRecurrenceDate(refDate, task.recurrenceRules[0])
+        : null;
+
+      if (nextDate) {
+        const newDue = task.due
+          ? (task.showWithoutTime ? format(nextDate, 'yyyy-MM-dd') : format(nextDate, "yyyy-MM-dd'T'HH:mm:ss"))
+          : null;
+        let newStart = task.start;
+        if (task.start && task.due) {
+          const oldDue = parseISO(task.due);
+          const oldStart = parseISO(task.start);
+          if (!isNaN(oldDue.getTime()) && !isNaN(oldStart.getTime())) {
+            const shiftMs = nextDate.getTime() - oldDue.getTime();
+            const shiftedStart = new Date(oldStart.getTime() + shiftMs);
+            newStart = task.showWithoutTime ? format(shiftedStart, 'yyyy-MM-dd') : format(shiftedStart, "yyyy-MM-dd'T'HH:mm:ss");
+          }
+        }
+        updates = {
+          progress: 'needs-action',
+          ...(newDue ? { due: newDue } : {}),
+          ...(newStart ? { start: newStart } : {}),
+        };
+      } else {
+        updates = { progress: 'completed' };
+      }
+    } else {
+      const newProgress = task.progress === 'completed' ? 'needs-action' : 'completed';
+      updates = { progress: newProgress };
+    }
+
     await client.updateCalendarTask(task.id, updates);
     set({
       tasks: get().tasks.map(t => t.id === task.id ? { ...t, ...updates, updated: new Date().toISOString() } : t),
