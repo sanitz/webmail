@@ -145,6 +145,40 @@ describe('calendar-task-scope', () => {
       });
       expect(store.createTask).not.toHaveBeenCalled();
     });
+
+    it('strips calendarIds and @type from recurrenceOverrides when marking progress completed on scope "this"', async () => {
+      const master = makeTask();
+      const occurrence: CalendarTask = {
+        ...master,
+        id: 'master-task-1:2026-10-03T08:00:00',
+        originalId: 'master-task-1',
+        recurrenceId: '2026-10-03T08:00:00',
+        due: '2026-10-03T08:00:00',
+      };
+      const store = createMockStore([master]);
+
+      await executeTaskScopeAction(dummyClient, store, {
+        type: 'edit_task',
+        task: occurrence,
+        updates: {
+          '@type': 'Task',
+          calendarIds: { 'cal-1': true },
+          progress: 'completed',
+        } as unknown as Partial<CalendarTask>,
+      }, 'this');
+
+      expect(store.updateTask).toHaveBeenCalledWith(dummyClient, 'master-task-1', {
+        recurrenceOverrides: {
+          '2026-10-03T08:00:00': {
+            progress: 'completed',
+          },
+        },
+      });
+      const passedPatch = (store.updateTask as ReturnType<typeof vi.fn>).mock.calls[0][2];
+      const overrideObj = passedPatch.recurrenceOverrides['2026-10-03T08:00:00'];
+      expect(overrideObj).not.toHaveProperty('calendarIds');
+      expect(overrideObj).not.toHaveProperty('@type');
+    });
   });
 
   describe('delete_task scope handling', () => {

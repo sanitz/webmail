@@ -18,6 +18,30 @@ export function isRecurringTask(task: CalendarTask): boolean {
   return (task.recurrenceRules?.length ?? 0) > 0 || task.recurrenceId != null;
 }
 
+const OCCURRENCE_DROPPED_KEYS = new Set([
+  'id',
+  'uid',
+  '@type',
+  'calendarIds',
+  'recurrenceRules',
+  'recurrenceOverrides',
+  'excludedRecurrenceRules',
+  'baseEventId',
+  'originalId',
+  'recurrenceId',
+  'recurrenceIdTimeZone',
+  'created',
+  'updated',
+  'isDraft',
+  'isOrigin',
+  'utcStart',
+  'utcEnd',
+  'useDefaultAlerts',
+  'mayInviteSelf',
+  'mayInviteOthers',
+  'hideAttendees',
+]);
+
 export async function executeTaskScopeAction(
   client: IJMAPClient,
   taskStore: TaskStoreOperations,
@@ -38,6 +62,9 @@ export async function executeTaskScopeAction(
         delete (cleanUpdates as Record<string, unknown>).uid;
         delete (cleanUpdates as Record<string, unknown>).recurrenceId;
         delete (cleanUpdates as Record<string, unknown>).originalId;
+        if ((task.recurrenceId || task.id.includes(':')) && cleanUpdates.due === task.due && master.due && master.due !== task.due) {
+          cleanUpdates.due = master.due;
+        }
         await taskStore.updateTask(client, master.id, cleanUpdates);
         break;
       }
@@ -79,12 +106,12 @@ export async function executeTaskScopeAction(
           break;
         }
         const existingOverrides = (master.recurrenceOverrides || {}) as Record<string, unknown>;
-        const cleanUpdates = { ...updates };
-        delete (cleanUpdates as Record<string, unknown>).id;
-        delete (cleanUpdates as Record<string, unknown>).uid;
-        delete (cleanUpdates as Record<string, unknown>).recurrenceId;
-        delete (cleanUpdates as Record<string, unknown>).originalId;
-        delete (cleanUpdates as Record<string, unknown>).recurrenceRules;
+        const cleanUpdates: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(updates)) {
+          if (!OCCURRENCE_DROPPED_KEYS.has(k)) {
+            cleanUpdates[k] = v;
+          }
+        }
 
         const patchKey = `recurrenceOverrides/${recKey}`;
         const overrideEntry = {
