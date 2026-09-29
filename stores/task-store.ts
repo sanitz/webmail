@@ -139,6 +139,49 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   toggleTaskComplete: async (client, task) => {
+    const isOccurrence = !!task.recurrenceId || task.id.includes(':');
+    const masterId = task.originalId || (task.id.includes(':') ? task.id.split(':')[0] : task.id);
+    const master = get().tasks.find((t) => t.id === masterId) || task;
+    const recurrenceId = task.recurrenceId
+      || (task.id.includes(':') ? task.id.split(':')[1] : null)
+      || (task.due ? (task.showWithoutTime ? task.due.slice(0, 10) : task.due) : null);
+
+    if (isOccurrence && recurrenceId) {
+      const isCompleted = task.progress === 'completed';
+      const newProgress: CalendarTask['progress'] = isCompleted ? 'needs-action' : 'completed';
+      const existingOverrides = master.recurrenceOverrides || {};
+      const existingEntry = existingOverrides[recurrenceId] || {};
+      const overrideEntry: Partial<CalendarTask> & { excluded?: boolean } = {
+        ...existingEntry,
+        progress: newProgress,
+      };
+      delete (overrideEntry as Record<string, unknown>).id;
+      delete (overrideEntry as Record<string, unknown>).uid;
+      delete (overrideEntry as Record<string, unknown>)['@type'];
+      delete (overrideEntry as Record<string, unknown>).calendarIds;
+      delete (overrideEntry as Record<string, unknown>).recurrenceRules;
+      delete (overrideEntry as Record<string, unknown>).recurrenceOverrides;
+
+      const patchKey = `recurrenceOverrides/${recurrenceId}`;
+      const patch = (!master.recurrenceOverrides || Object.keys(master.recurrenceOverrides).length === 0)
+        ? { recurrenceOverrides: { [recurrenceId]: overrideEntry } }
+        : { [patchKey]: overrideEntry };
+
+      await client.updateCalendarTask(masterId, patch);
+      set({
+        tasks: get().tasks.map((t) => {
+          if (t.id !== masterId) return t;
+          const current = t.recurrenceOverrides || {};
+          return {
+            ...t,
+            recurrenceOverrides: { ...current, [recurrenceId]: overrideEntry },
+            updated: new Date().toISOString(),
+          };
+        }),
+      });
+      return;
+    }
+
     let updates: Partial<CalendarTask>;
 
     if (task.progress !== 'completed' && task.recurrenceRules?.length) {
@@ -175,9 +218,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       updates = { progress: newProgress };
     }
 
-    await client.updateCalendarTask(task.id, updates);
+    await client.updateCalendarTask(masterId, updates);
     set({
-      tasks: get().tasks.map(t => t.id === task.id ? { ...t, ...updates, updated: new Date().toISOString() } : t),
+      tasks: get().tasks.map(t => t.id === masterId ? { ...t, ...updates, updated: new Date().toISOString() } : t),
     });
     // A toggle is reported as onTaskToggleComplete only, not also as
     // onTaskUpdate, so a plugin that listens to both sees each change once.
