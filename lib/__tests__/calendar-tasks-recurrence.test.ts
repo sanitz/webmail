@@ -55,9 +55,9 @@ describe('groupTasksByDueDay recurrence expansion', () => {
     // Check each day has the task instance with matching due date and occurrence metadata
     const day21 = map.get('2026-09-21');
     expect(day21).toHaveLength(1);
-    expect(day21![0].id).toBe('walk:2026-09-21');
+    expect(day21![0].id).toBe('walk:2026-09-21T00:00:00');
     expect(day21![0].originalId).toBe('walk');
-    expect(day21![0].recurrenceId).toBe('2026-09-21');
+    expect(day21![0].recurrenceId).toBe('2026-09-21T00:00:00');
     expect(day21![0].due).toBe('2026-09-21');
   });
 
@@ -88,7 +88,7 @@ describe('groupTasksByDueDay recurrence expansion', () => {
     // 2026-09-22 has overridden title
     const day22 = map.get('2026-09-22');
     expect(day22).toHaveLength(1);
-    expect(day22![0].id).toBe('walk:2026-09-22');
+    expect(day22![0].id).toBe('walk:2026-09-22T00:00:00');
     expect(day22![0].title).toBe('Lauf mit Hund 🐕');
   });
 
@@ -131,11 +131,29 @@ describe('groupTasksByDueDay recurrence expansion', () => {
     expect(map.has('2026-09-21')).toBe(true);
     const occ21 = map.get('2026-09-21')![0];
     expect(occ21.progress).toBe('completed');
-    expect(occ21.id).toBe('weekly:2026-09-21');
+    expect(occ21.id).toBe('weekly:2026-09-21T00:00:00');
 
     // 2026-09-28 must be present as pending
     expect(map.has('2026-09-28')).toBe(true);
     const occ28 = map.get('2026-09-28')![0];
     expect(occ28.progress).toBe('needs-action');
+  });
+  it('applies overrides keyed by JSCalendar LocalDateTime for all-day tasks (as stored by the server)', () => {
+    const task = makeTask('walk', {
+      due: '2026-09-20',
+      recurrenceRules: [createRecurrenceRule('daily')],
+      recurrenceOverrides: {
+        '2026-09-21T00:00:00': { excluded: true },
+        '2026-09-22T00:00:00': { title: 'Lauf mit Hund 🐕', due: '2026-09-23' },
+      },
+    });
+    const range = { start: new Date('2026-09-20T00:00:00'), end: new Date('2026-09-23T23:59:59') };
+
+    const map = groupTasksByDueDay([task], range);
+
+    expect(map.has('2026-09-21')).toBe(false);
+    expect(map.has('2026-09-22')).toBe(false);
+    const moved = map.get('2026-09-23')!.find((t) => t.recurrenceId === '2026-09-22T00:00:00');
+    expect(moved?.title).toBe('Lauf mit Hund 🐕');
   });
 });
