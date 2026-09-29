@@ -110,4 +110,32 @@ describe('groupTasksByDueDay recurrence expansion', () => {
       '2026-09-21',
     ]);
   });
+
+  it('renders completed occurrences from recurrenceOverrides including past dates', () => {
+    const task = makeTask('weekly', {
+      title: 'Weekly Review',
+      due: '2026-09-28', // series was advanced to 28th
+      recurrenceRules: [createRecurrenceRule('weekly')],
+      recurrenceOverrides: {
+        '2026-09-21': { progress: 'completed' },
+      },
+    });
+
+    const range = {
+      start: new Date('2026-09-20T00:00:00'),
+      end: new Date('2026-10-05T23:59:59'),
+    };
+
+    const map = groupTasksByDueDay([task], range);
+    // 2026-09-21 must be present because of the completed override!
+    expect(map.has('2026-09-21')).toBe(true);
+    const occ21 = map.get('2026-09-21')![0];
+    expect(occ21.progress).toBe('completed');
+    expect(occ21.id).toBe('weekly:2026-09-21');
+
+    // 2026-09-28 must be present as pending
+    expect(map.has('2026-09-28')).toBe(true);
+    const occ28 = map.get('2026-09-28')![0];
+    expect(occ28.progress).toBe('needs-action');
+  });
 });
