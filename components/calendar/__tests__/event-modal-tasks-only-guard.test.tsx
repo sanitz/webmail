@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { EventModal } from '../event-modal';
 import type { Calendar } from '@/lib/jmap/types';
@@ -64,6 +64,7 @@ describe('EventModal tasks-only & writable calendar guard (#1208)', () => {
 
     // Should NOT call onSave because the only calendar is task-only
     expect(onSave).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith('errors.no_writable_calendar_for_event');
   });
 
   it('tells the user why saving is blocked when editing an event whose calendar became tasks-only (#1208 review finding #6)', async () => {
@@ -107,4 +108,111 @@ describe('EventModal tasks-only & writable calendar guard (#1208)', () => {
     expect(onSave).not.toHaveBeenCalled();
     expect(toastError).toHaveBeenCalled();
   });
+
+
+  it('picks up the default calendar and allows saving when calendars load asynchronously after mount', async () => {
+    toastError.mockClear();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    // Initial mount with empty calendars (as during initial page fetch)
+    const { rerender } = render(
+      <EventModal
+        calendars={[]}
+        defaultDate={new Date('2026-09-20T10:00:00Z')}
+        onSave={onSave}
+        onClose={vi.fn()}
+        currentUserEmails={['user@example.com']}
+      />
+    );
+
+    // Calendars arrive from JMAP fetch
+    const loadedCalendars = [
+      {
+        id: 'cal-work',
+        name: 'Work Calendar',
+        isDefault: true,
+        isShared: false,
+        myRights: { mayWriteAll: true, mayWriteOwn: true },
+      },
+      {
+        id: 'cal-private',
+        name: 'Private',
+        isDefault: false,
+        isShared: false,
+        myRights: { mayWriteAll: true, mayWriteOwn: true },
+      },
+    ] as unknown as Calendar[];
+
+    await act(async () => {
+      rerender(
+        <EventModal
+          calendars={loadedCalendars}
+          defaultDate={new Date('2026-09-20T10:00:00Z')}
+          onSave={onSave}
+          onClose={vi.fn()}
+          currentUserEmails={['user@example.com']}
+        />
+      );
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('form.title'), {
+      target: { value: 'New Event Title' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText('form.save'));
+    });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'New Event Title',
+        calendarIds: { 'cal-work': true },
+      }),
+      false
+    );
+  });
+
+  it('resolves namespaced or originalId calendars and saves successfully', async () => {
+    toastError.mockClear();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    const namespacedCalendars = [
+      {
+        id: 'acc1:cal-work',
+        originalId: 'cal-work',
+        name: 'Work Calendar',
+        isDefault: true,
+        isShared: false,
+        myRights: { mayWriteAll: true, mayWriteOwn: true },
+      },
+    ] as unknown as Calendar[];
+
+    await act(async () => {
+      render(
+        <EventModal
+          calendars={namespacedCalendars}
+          defaultCalendarId="cal-work"
+          defaultDate={new Date('2026-09-20T10:00:00Z')}
+          onSave={onSave}
+          onClose={vi.fn()}
+          currentUserEmails={['user@example.com']}
+        />
+      );
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('form.title'), {
+      target: { value: 'Namespaced Event Title' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText('form.save'));
+    });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Namespaced Event Title',
+        calendarIds: { 'acc1:cal-work': true },
+      }),
+      false
+    );
+  });
 });
+
