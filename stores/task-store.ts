@@ -6,6 +6,7 @@ import { debug } from '@/lib/debug';
 import { taskHooks } from '@/lib/plugin-hooks';
 import { taskToView } from '@/lib/plugin-projection';
 import { getNextRecurrenceDate } from '@/lib/recurrence-expansion';
+import { findTaskOverride, occurrenceRecurrenceId, overridePatch } from '@/lib/calendar-tasks';
 
 export type TaskViewFilter = 'all' | 'pending' | 'completed' | 'overdue';
 
@@ -128,15 +129,12 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     const isOccurrence = !!task.recurrenceId || task.id.includes(':');
     const masterId = task.originalId || (task.id.includes(':') ? task.id.split(':')[0] : task.id);
     const master = get().tasks.find((t) => t.id === masterId) || task;
-    const recurrenceId = task.recurrenceId
-      || (task.id.includes(':') ? task.id.split(':')[1] : null)
-      || (task.due ? (task.showWithoutTime ? task.due.slice(0, 10) : task.due) : null);
+    const recurrenceId = occurrenceRecurrenceId(task);
 
     if (isOccurrence && recurrenceId) {
       const isCompleted = task.progress === 'completed';
       const newProgress: CalendarTask['progress'] = isCompleted ? 'needs-action' : 'completed';
-      const existingOverrides = master.recurrenceOverrides || {};
-      const existingEntry = existingOverrides[recurrenceId] || {};
+      const existingEntry = findTaskOverride(master.recurrenceOverrides, recurrenceId) || {};
       const overrideEntry: Partial<CalendarTask> & { excluded?: boolean } = {
         ...existingEntry,
         progress: newProgress,
@@ -148,12 +146,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       delete (overrideEntry as Record<string, unknown>).recurrenceRules;
       delete (overrideEntry as Record<string, unknown>).recurrenceOverrides;
 
-      const patchKey = `recurrenceOverrides/${recurrenceId}`;
-      const patch = (!master.recurrenceOverrides || Object.keys(master.recurrenceOverrides).length === 0)
-        ? { recurrenceOverrides: { [recurrenceId]: overrideEntry } }
-        : { [patchKey]: overrideEntry };
-
-      await client.updateCalendarTask(masterId, patch);
+      await client.updateCalendarTask(masterId, overridePatch(master, recurrenceId, overrideEntry as Record<string, unknown>));
       set({
         tasks: get().tasks.map((t) => {
           if (t.id !== masterId) return t;
