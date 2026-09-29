@@ -131,7 +131,16 @@ export function CalendarMonthView({
     return map;
   }, [events]);
 
-  const tasksByDate = useMemo(() => groupTasksByDueDay(tasks), [tasks]);
+  const monthRange = useMemo(() => {
+    if (!weeks.length || !weeks[0]?.length) return undefined;
+    const lastWeek = weeks[weeks.length - 1];
+    return {
+      start: weeks[0][0],
+      end: lastWeek[lastWeek.length - 1],
+    };
+  }, [weeks]);
+
+  const tasksByDate = useMemo(() => groupTasksByDueDay(tasks, monthRange), [tasks, monthRange]);
 
   const weekSegments = useMemo(() => {
     return weeks.map((week) => {
@@ -499,7 +508,7 @@ export function CalendarMonthView({
                   const calId = Object.keys(task.calendarIds).find((id) => calendarMap.has(id));
                   return (
                     <div
-                      key={`task-${task.id}`}
+                      key={`task-${task.id}-${task.due ?? dayIndex}`}
                       className="absolute px-0.5 pointer-events-auto"
                       style={{
                         left: `calc(${(dayIndex / 7) * 100}% + 1px)`,

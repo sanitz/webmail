@@ -222,7 +222,15 @@ export function CalendarWeekView({
     return packWeekSegments(shownIndexByDay ? remapSegmentsToShownDays(segments, shownIndexByDay) : segments);
   }, [events, allDays, shownIndexByDay]);
 
-  const tasksByDay = useMemo(() => groupTasksByDueDay(tasks), [tasks]);
+  const weekRange = useMemo(() => {
+    if (!days.length) return undefined;
+    return {
+      start: days[0],
+      end: days[days.length - 1],
+    };
+  }, [days]);
+
+  const tasksByDay = useMemo(() => groupTasksByDueDay(tasks, weekRange), [tasks, weekRange]);
 
   // Tasks stack under the events of their own day rather than globally (#1107, #1270)
   const dayEventRows = useMemo(() => {
@@ -522,7 +530,7 @@ export function CalendarWeekView({
                 const baseRow = dayEventRows[dayIndex];
                 return dayTasks.map((task, taskIndex) => (
                   <div
-                    key={`task-${task.id}`}
+                    key={`task-${task.id}-${task.due ?? dayIndex}`}
                     className="absolute px-0.5 pointer-events-auto"
                     style={{
                       left: `calc(${(dayIndex / colCount) * 100}% + 1px)`,

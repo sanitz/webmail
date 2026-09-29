@@ -7,7 +7,7 @@ import { batched, itemsPerRequest } from "./request-limits";
 import { keywordPointer } from "./patch-pointer";
 import { FirstTouchGate } from "./first-touch-gate";
 import { debug } from "@/lib/debug";
-import { normalizeCalendarEventLike } from "@/lib/calendar-event-normalization";
+import { normalizeCalendarEventLike, normalizeStalwartPropertyNames } from "@/lib/calendar-event-normalization";
 import { SYNTHETIC_ID_PROBE, RECURRENCE_BASE_PROPERTIES, hydrateRecurrenceInstances, isServerRecurrenceInstance } from "@/lib/recurrence-instances";
 import { isTaskLikeObject, type ScannedCalendarObject } from "@/lib/calendar-component-detection";
 import { DEFAULT_CALENDAR_COMPONENTS, mkCalendarCollection, newCalendarCollectionName, fetchCalendarCollectionComponents } from "@/lib/webdav/calendar-collection";
@@ -542,14 +542,15 @@ const TASK_PROGRESS_NORMALIZATION = new Map<string, CalendarTask['progress']>([
   ['canceled', 'cancelled'],
 ]);
 
-function normalizeCalendarTask(task: CalendarTask): CalendarTask {
-  const progress = task.progress as unknown;
-  if (typeof progress !== 'string') return task;
+export function normalizeCalendarTask(task: CalendarTask): CalendarTask {
+  const withNormalizedNames = normalizeStalwartPropertyNames(task as unknown as Record<string, unknown>) as unknown as CalendarTask;
+  const progress = withNormalizedNames.progress as unknown;
+  if (typeof progress !== 'string') return withNormalizedNames;
 
   const normalizedProgress = TASK_PROGRESS_NORMALIZATION.get(progress.toLowerCase());
   return normalizedProgress === undefined
-    ? task
-    : { ...task, progress: normalizedProgress };
+    ? withNormalizedNames
+    : { ...withNormalizedNames, progress: normalizedProgress };
 }
 
 /**
