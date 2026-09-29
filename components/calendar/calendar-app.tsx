@@ -100,11 +100,13 @@ import { MvTopBar } from "@/components/layout/mv-top-bar";
 import { useMountainViewShell } from "@/hooks/use-mountain-view-shell";
 import { calendarHooks } from "@/lib/plugin-hooks";
 import { eventToView } from "@/lib/plugin-projection";
+import { isRecurringTask, executeTaskScopeAction, type PendingTaskScopeAction } from "@/lib/calendar-task-scope";
 
 type PendingScopeAction =
   | { type: "edit"; event: CalendarEvent; updates: Partial<CalendarEvent>; sendScheduling?: boolean }
   | { type: "delete"; event: CalendarEvent; sendScheduling?: boolean }
-  | { type: "rsvp"; event: CalendarEvent; participantId: string; status: CalendarParticipant["participationStatus"] };
+  | { type: "rsvp"; event: CalendarEvent; participantId: string; status: CalendarParticipant["participationStatus"] }
+  | PendingTaskScopeAction;
 
 function isRecurringEvent(event: CalendarEvent): boolean {
   return (event.recurrenceRules?.length ?? 0) > 0 || event.recurrenceId != null;
@@ -671,6 +673,12 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
   // false: a plugin stopped it and said why, so the task form stays open.
   const handleSaveTask = useCallback(async (data: Partial<import("@/lib/jmap/types").CalendarTask>) => {
     if (!client) return false;
+    if (editTask && isRecurringTask(editTask)) {
+      setPendingScopeAction({ type: "edit_task", task: editTask, updates: data });
+      setShowTaskModal(false);
+      setEditTask(null);
+      return true;
+    }
     const saved = editTask
       ? await taskStore.updateTask(client, editTask.id, data)
       : (await taskStore.createTask(client, data)) !== null;
@@ -682,10 +690,17 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
 
   const handleDeleteTask = useCallback(async (id: string) => {
     if (!client) return;
+    const taskToDelete = editTask || taskStore.tasks.find(t => t.id === id);
+    if (taskToDelete && isRecurringTask(taskToDelete)) {
+      setPendingScopeAction({ type: "delete_task", task: taskToDelete });
+      setShowTaskModal(false);
+      setEditTask(null);
+      return;
+    }
     if (!(await taskStore.deleteTask(client, id))) return;
     setShowTaskModal(false);
     setEditTask(null);
-  }, [client, taskStore]);
+  }, [client, editTask, taskStore]);
 
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1160,6 +1175,18 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
       await submitRsvp(event.id, participantId, status, scope === "this" ? "occurrence" : "series");
       return;
     }
+    if (pendingScopeAction.type === "edit_task" || pendingScopeAction.type === "delete_task") {
+      const action = pendingScopeAction;
+      setPendingScopeAction(null);
+      try {
+        await executeTaskScopeAction(client, taskStore, action, scope);
+        toast.success(action.type === "delete_task" ? t("notifications.event_deleted") : t("notifications.event_updated"));
+      } catch (err) {
+        debug.error("Failed to execute task scope action:", err);
+        toast.error(t("notifications.event_error"));
+      }
+      return;
+    }
     const { type, event, sendScheduling } = pendingScopeAction;
     const updates = type === "edit" ? pendingScopeAction.updates : undefined;
     setPendingScopeAction(null);
@@ -1302,7 +1329,7 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
     } catch {
       toast.error(t("notifications.event_error"));
     }
-  }, [client, pendingScopeAction, updateEvent, deleteEvent, createEvent, findMasterEvent, truncateRecurrenceAtEvent, refetchCurrentRange, submitRsvp, t]);
+  }, [client, pendingScopeAction, taskStore, updateEvent, deleteEvent, createEvent, findMasterEvent, truncateRecurrenceAtEvent, refetchCurrentRange, submitRsvp, t]);
 
   const handleRsvp = useCallback(async (eventId: string, participantId: string, status: CalendarParticipant['participationStatus']) => {
     if (!client) return;
@@ -2178,7 +2205,13 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
       {renderWebcalActionChoice()}
       <RecurrenceScopeDialog
         isOpen={!!pendingScopeAction}
-        actionType={pendingScopeAction?.type || "edit"}
+        actionType={
+          pendingScopeAction?.type === "delete" || pendingScopeAction?.type === "delete_task"
+            ? "delete"
+            : pendingScopeAction?.type === "rsvp"
+            ? "rsvp"
+            : "edit"
+        }
         onSelect={handleScopeSelect}
         onClose={() => setPendingScopeAction(null)}
       />
