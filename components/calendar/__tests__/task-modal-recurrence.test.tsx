@@ -4,6 +4,11 @@ import { TaskModal } from '../task-modal';
 import type { CalendarTask, Calendar } from '@/lib/jmap/types';
 import { createRecurrenceRule } from '@/lib/recurrence-rule';
 
+const toastError = vi.fn();
+vi.mock('@/stores/toast-store', () => ({
+  toast: { success: vi.fn(), error: (...args: unknown[]) => toastError(...args) },
+}));
+
 const calendars = [{ id: 'cal-1', name: 'Tasks', isShared: false }] as unknown as Calendar[];
 
 function makeTask(overrides: Partial<CalendarTask> = {}): CalendarTask {
@@ -97,5 +102,35 @@ describe('TaskModal recurrence handling', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     const patch = onSave.mock.calls[0][0] as Partial<CalendarTask>;
     expect(patch.recurrenceRules).toBeNull();
+  });
+
+  it('saves weekly recurrence when selected on new task', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(<TaskModal calendars={calendars} onSave={onSave} onClose={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText('tasks.title_placeholder'), { target: { value: 'Weekly Review' } });
+    fireEvent.change(screen.getByLabelText(/recurrence\.title/i), { target: { value: 'weekly' } });
+    fireEvent.click(screen.getByText('tasks.save'));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    const patch = onSave.mock.calls[0][0] as Partial<CalendarTask>;
+    expect(patch.title).toBe('Weekly Review');
+    expect(patch.recurrenceRules).toHaveLength(1);
+    expect(patch.recurrenceRules![0]).toMatchObject({
+      '@type': 'RecurrenceRule',
+      frequency: 'weekly',
+    });
+  });
+
+  it('shows error toast when onSave throws an error and resets saving state', async () => {
+    toastError.mockClear();
+    const onSave = vi.fn().mockRejectedValue(new Error('Stalwart rejected recurrence'));
+    render(<TaskModal calendars={calendars} onSave={onSave} onClose={vi.fn()} />);
+
+    fireEvent.change(screen.getByPlaceholderText('tasks.title_placeholder'), { target: { value: 'Failing Task' } });
+    fireEvent.click(screen.getByText('tasks.save'));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(toastError).toHaveBeenCalledTimes(1));
   });
 });

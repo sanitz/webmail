@@ -222,6 +222,35 @@ describe('JMAPClient task operations (#958)', () => {
     await client.updateCalendarTask('task-1', modalPayload(null));
     expect(sentTask('update', 'task-1').due).toBeNull();
   });
+
+  it('createCalendarTask cleans recurrenceRules to singular recurrenceRule for Stalwart compatibility', async () => {
+    const task: Partial<CalendarTask> = {
+      title: 'Recurring Task',
+      progress: 'needs-action',
+      recurrenceRules: [{
+        '@type': 'RecurrenceRule',
+        frequency: 'weekly',
+        interval: 1,
+        firstDayOfWeek: 'mo',
+        byDay: null,
+      } as never],
+    };
+
+    await client.createCalendarTask(task);
+
+    const setCall = sentCalls.find((c) => c.method === 'CalendarEvent/set');
+    expect(setCall).toBeDefined();
+
+    const createPayload = (setCall?.args.create as Record<string, Record<string, unknown>>)?.['new-task'];
+    expect(createPayload).toBeDefined();
+    expect(createPayload).not.toHaveProperty('recurrenceRules');
+    expect(createPayload.recurrenceRule).toMatchObject({
+      '@type': 'RecurrenceRule',
+      frequency: 'weekly',
+      interval: 1,
+      firstDayOfWeek: 'mo',
+    });
+  });
 });
 
 describe('JMAPClient tasks in shared calendars (#1204)', () => {

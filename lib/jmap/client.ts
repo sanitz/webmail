@@ -9497,6 +9497,7 @@ export class JMAPClient implements IJMAPClient {
       taskData.calendarIds = resolved.calendarIds;
     }
     const cleanTask = { ...completeBareTaskDates(taskData), '@type': 'Task' };
+    cleanRecurrenceRules(cleanTask as unknown as Record<string, unknown>);
 
     debug.group('CalendarTask/create', 'tasks');
     debug.log('tasks', 'CalendarTask/create accountId', accountId);
