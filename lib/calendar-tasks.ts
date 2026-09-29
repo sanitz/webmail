@@ -50,6 +50,7 @@ export function groupTasksByDueDay(
 
     if (rangeStart && rangeEnd && task.recurrenceRules?.length) {
       // Recurring task with date range: expand occurrences
+      const overrides = (task.recurrenceOverrides || {}) as Record<string, Partial<CalendarTask> & { excluded?: boolean }>;
       const seenDates = new Set<string>();
       for (const rule of task.recurrenceRules) {
         const dates = generateDates(taskDue, rule, rangeStart, rangeEnd, true);
@@ -58,18 +59,30 @@ export function groupTasksByDueDay(
           if (seenDates.has(key)) continue;
           seenDates.add(key);
 
-          const occurrenceDue = task.showWithoutTime
+          const recurrenceId = task.showWithoutTime
             ? key
             : format(date, "yyyy-MM-dd'T'HH:mm:ss");
 
+          const override = overrides[recurrenceId];
+          if (override?.excluded) continue;
+
+          const occurrenceDue = (override?.due) || (task.showWithoutTime
+            ? key
+            : format(date, "yyyy-MM-dd'T'HH:mm:ss"));
+
           const occTask: CalendarTask = {
             ...task,
+            ...(override || {}),
+            id: `${task.id}:${recurrenceId}`,
+            originalId: task.originalId || task.id,
+            recurrenceId,
             due: occurrenceDue,
           };
 
-          const existing = map.get(key);
+          const targetDayKey = taskDueDayKey(occTask) || key;
+          const existing = map.get(targetDayKey);
           if (existing) existing.push(occTask);
-          else map.set(key, [occTask]);
+          else map.set(targetDayKey, [occTask]);
         }
       }
     } else {

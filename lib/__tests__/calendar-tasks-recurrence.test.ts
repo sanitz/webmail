@@ -52,11 +52,44 @@ describe('groupTasksByDueDay recurrence expansion', () => {
       '2026-09-23',
     ]);
 
-    // Check each day has the task instance with matching due date
+    // Check each day has the task instance with matching due date and occurrence metadata
     const day21 = map.get('2026-09-21');
     expect(day21).toHaveLength(1);
-    expect(day21![0].id).toBe('walk');
+    expect(day21![0].id).toBe('walk:2026-09-21');
+    expect(day21![0].originalId).toBe('walk');
+    expect(day21![0].recurrenceId).toBe('2026-09-21');
     expect(day21![0].due).toBe('2026-09-21');
+  });
+
+  it('respects recurrenceOverrides by excluding and modifying occurrences', () => {
+    const task = makeTask('walk', {
+      title: 'Lauf 🚶',
+      due: '2026-09-20',
+      recurrenceRules: [createRecurrenceRule('daily')],
+      recurrenceOverrides: {
+        '2026-09-21': { excluded: true },
+        '2026-09-22': { title: 'Lauf mit Hund 🐕' },
+      },
+    });
+
+    const range = {
+      start: new Date('2026-09-20T00:00:00'),
+      end: new Date('2026-09-23T23:59:59'),
+    };
+
+    const map = groupTasksByDueDay([task], range);
+    // 2026-09-21 is excluded
+    expect([...map.keys()].sort()).toEqual([
+      '2026-09-20',
+      '2026-09-22',
+      '2026-09-23',
+    ]);
+
+    // 2026-09-22 has overridden title
+    const day22 = map.get('2026-09-22');
+    expect(day22).toHaveLength(1);
+    expect(day22![0].id).toBe('walk:2026-09-22');
+    expect(day22![0].title).toBe('Lauf mit Hund 🐕');
   });
 
   it('respects until parameter in recurrence rule', () => {
