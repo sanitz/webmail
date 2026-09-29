@@ -32,6 +32,7 @@ import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { useSettingsStore } from "@/stores/settings-store";
 import { generateUUID } from "@/lib/utils";
 import { buildDuplicateEventData } from "@/lib/calendar-duplicate";
+import { debug } from "@/lib/debug";
 import { useFormatEventDate } from "@/hooks/use-format-event-date";
 import { useIsPaneScoped } from "@/hooks/use-pane-context";
 import { useContactNameResolver } from "@/hooks/use-contact-name-resolver";
@@ -272,10 +273,15 @@ export function EventModal({
   const [calendarId, setCalendarId] = useState<string>(() => {
     if (event?.calendarIds) {
       const primary = getPrimaryCalendarId(event);
-      if (primary) return primary;
+      if (primary) {
+        const match = calendars.find(c => c.id === primary || c.originalId === primary);
+        if (match) return match.id;
+        return primary;
+      }
     }
-    if (defaultCalendarId && calendars.some(c => c.id === defaultCalendarId && canCreateEventsIn(c, isSubscriptionCalendar))) {
-      return defaultCalendarId;
+    if (defaultCalendarId && calendars.some(c => (c.id === defaultCalendarId || c.originalId === defaultCalendarId) && canCreateEventsIn(c, isSubscriptionCalendar))) {
+      const match = calendars.find(c => c.id === defaultCalendarId || c.originalId === defaultCalendarId);
+      return match?.id ?? defaultCalendarId;
     }
     const defaultCal = calendars.find(c => c.isDefault && canCreateEventsIn(c, isSubscriptionCalendar));
     // Never default new events into a subscription / read-only / tasks-only calendar (#762, #1208).
@@ -283,6 +289,30 @@ export function EventModal({
       || calendars.find(c => canCreateEventsIn(c, isSubscriptionCalendar))?.id
       || "";
   });
+
+  // Keep calendarId in sync when calendars arrive asynchronously or current selection is invalid
+  useEffect(() => {
+    if (isEdit && event?.calendarIds) {
+      const primary = getPrimaryCalendarId(event);
+      if (primary) {
+        const match = calendars.find(c => c.id === primary || c.originalId === primary);
+        if (match && match.id !== calendarId) {
+          setCalendarId(match.id);
+          return;
+        }
+      }
+    }
+    const isCurrentValid = calendarId && calendars.some(c => (c.id === calendarId || c.originalId === calendarId) && canCreateEventsIn(c, isSubscriptionCalendar));
+    if (!isCurrentValid && calendars.length > 0) {
+      const target =
+        (defaultCalendarId && calendars.find(c => (c.id === defaultCalendarId || c.originalId === defaultCalendarId) && canCreateEventsIn(c, isSubscriptionCalendar))?.id)
+        || calendars.find(c => c.isDefault && canCreateEventsIn(c, isSubscriptionCalendar))?.id
+        || calendars.find(c => canCreateEventsIn(c, isSubscriptionCalendar))?.id;
+      if (target && target !== calendarId) {
+        setCalendarId(target);
+      }
+    }
+  }, [calendarId, calendars, defaultCalendarId, isSubscriptionCalendar, isEdit, event]);
 
   // Calendars offered as create/move targets: writable, non-subscription, plus
   // the event's current calendar so an in-place edit never blanks the select.
@@ -537,55 +567,65 @@ export function EventModal({
       return;
     }
 
-    if (!calendarId) return;
-    const targetCal = calendars.find(c => c.id === calendarId);
-    if (targetCal && !canCreateEventsIn(targetCal, isSubscriptionCalendar)) {
-      toast.error(t('errors.no_writable_calendar_for_event'));
-      return;
-    }
+    try {
+      const effectiveCalendarId = calendarId
+        || (defaultCalendarId && calendars.find(c => (c.id === defaultCalendarId || c.originalId === defaultCalendarId) && canCreateEventsIn(c, isSubscriptionCalendar))?.id)
+        || calendars.find(c => c.isDefault && canCreateEventsIn(c, isSubscriptionCalendar))?.id
+        || calendars.find(c => canCreateEventsIn(c, isSubscriptionCalendar))?.id;
 
-    const pendingAttendee = participantInputRef.current?.flush() ?? null;
-    const effectiveAttendees = pendingAttendee ? [...attendees, pendingAttendee] : attendees;
-
-    const startStr = allDay
-      ? `${startDate}T00:00:00`
-      : `${startDate}T${startTime}:00`;
-
-    const start = allDay ? parseISO(startStr) : new Date(startStr);
-    let duration: string;
-
-    if (allDay) {
-      let inclusiveEnd = new Date(`${endDate}T00:00:00`);
-      if (inclusiveEnd < start) {
-        inclusiveEnd = new Date(start);
+      if (!effectiveCalendarId) {
+        toast.error(t('errors.no_writable_calendar_for_event'));
+        return;
       }
-      duration = buildAllDayDuration(start, inclusiveEnd);
-    } else {
-      const endStr = `${endDate}T${endTime}:00`;
-      let end = new Date(endStr);
-      if (end <= start) {
-        end = new Date(start.getTime() + 3600000);
+
+      const targetCal = calendars.find(c => c.id === effectiveCalendarId || c.originalId === effectiveCalendarId);
+      if (!targetCal || !canCreateEventsIn(targetCal, isSubscriptionCalendar)) {
+        toast.error(t('errors.no_writable_calendar_for_event'));
+        return;
       }
-      duration = buildDuration(start, end);
-    }
 
-    // The form's wall-clock fields are in the user's effective zone (the
-    // grid and prefill are display dates), so label them with that zone.
-    const timeZone = getEffectiveTimeZone();
+      const pendingAttendee = participantInputRef.current?.flush() ?? null;
+      const effectiveAttendees = pendingAttendee ? [...attendees, pendingAttendee] : attendees;
 
-    const trimmedDescription = description.trim();
+      const startStr = allDay
+        ? `${startDate}T00:00:00`
+        : `${startDate}T${startTime}:00`;
 
-    const data: Partial<CalendarEvent> = {
-      title: trimmedTitle,
-      start: startStr,
-      duration,
-      timeZone: allDay ? null : timeZone,
-      showWithoutTime: allDay,
-      calendarIds: { [calendarId]: true },
-      status: "confirmed",
-      freeBusyStatus: "busy",
-      privacy: "public",
-    };
+      const start = allDay ? parseISO(startStr) : new Date(startStr);
+      let duration: string;
+
+      if (allDay) {
+        let inclusiveEnd = new Date(`${endDate}T00:00:00`);
+        if (inclusiveEnd < start) {
+          inclusiveEnd = new Date(start);
+        }
+        duration = buildAllDayDuration(start, inclusiveEnd);
+      } else {
+        const endStr = `${endDate}T${endTime}:00`;
+        let end = new Date(endStr);
+        if (end <= start) {
+          end = new Date(start.getTime() + 3600000);
+        }
+        duration = buildDuration(start, end);
+      }
+
+      // The form's wall-clock fields are in the user's effective zone (the
+      // grid and prefill are display dates), so label them with that zone.
+      const timeZone = getEffectiveTimeZone();
+
+      const trimmedDescription = description.trim();
+
+      const data: Partial<CalendarEvent> = {
+        title: trimmedTitle,
+        start: startStr,
+        duration,
+        timeZone: allDay ? null : timeZone,
+        showWithoutTime: allDay,
+        calendarIds: { [effectiveCalendarId]: true },
+        status: "confirmed",
+        freeBusyStatus: "busy",
+        privacy: "public",
+      };
 
     // On an existing event the empty string is how a description gets cleared, but
     // sending it on creation writes a `DESCRIPTION:` with nothing after it — which
@@ -729,7 +769,11 @@ export function EventModal({
       savingRef.current = false;
       setIsSaving(false);
     }
-  }, [title, description, location, virtualLocation, startDate, startTime, endDate, endTime, allDay, calendarId, recurrence, customRule, useDefaultAlerts, defaultAlerts, alertRows, preservedAlerts, attendees, sendInvitations, currentUserEmails, existingParticipants, resolveContactName, event, onSave, isSaving, t, calendars, isSubscriptionCalendar]);
+  } catch (err) {
+    debug.error("Failed to save event:", err);
+    toast.error(t("notifications.event_error"));
+  }
+  }, [title, description, location, virtualLocation, startDate, startTime, endDate, endTime, allDay, calendarId, defaultCalendarId, recurrence, customRule, useDefaultAlerts, defaultAlerts, alertRows, preservedAlerts, attendees, sendInvitations, currentUserEmails, existingParticipants, resolveContactName, event, onSave, isSaving, t, calendars, isSubscriptionCalendar]);
 
   const handleRsvp = useCallback((status: CalendarParticipant['participationStatus']) => {
     if (!event || !userParticipantId || !onRsvp) return;
