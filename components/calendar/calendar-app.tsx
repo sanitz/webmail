@@ -667,7 +667,13 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
   }, [closeEventPanelForTask]);
 
   const handleToggleTaskComplete = useCallback((task: CalendarTask) => {
-    if (client) toggleTaskCompleteFn(client, task);
+    if (!client) return;
+    if (isRecurringTask(task) && !task.recurrenceId && !task.id.includes(':')) {
+      const newProgress = task.progress === 'completed' ? 'needs-action' : 'completed';
+      setPendingScopeAction({ type: "edit_task", task, updates: { progress: newProgress } });
+      return;
+    }
+    toggleTaskCompleteFn(client, task);
   }, [client, toggleTaskCompleteFn]);
 
   // false: a plugin stopped it and said why, so the task form stays open.

@@ -116,4 +116,78 @@ describe('task-store recurring toggleTaskComplete', () => {
       progress: 'completed',
     });
   });
+
+  it('updates recurrenceOverrides on master when toggling completion of an expanded occurrence', async () => {
+    const master = makeTask({
+      id: 't-walk',
+      title: 'Lauf 🚶',
+      due: '2026-09-20',
+      showWithoutTime: true,
+      progress: 'needs-action',
+      recurrenceRules: [createRecurrenceRule('weekly')],
+    });
+    useTaskStore.setState({ tasks: [master] });
+
+    const occurrence: CalendarTask = {
+      ...master,
+      id: 't-walk:2026-09-27',
+      originalId: 't-walk',
+      recurrenceId: '2026-09-27',
+      due: '2026-09-27',
+    };
+
+    await useTaskStore.getState().toggleTaskComplete(mockClient as IJMAPClient, occurrence);
+
+    expect(mockClient.updateCalendarTask).toHaveBeenCalledTimes(1);
+    const [calledId, calledUpdates] = (mockClient.updateCalendarTask as ReturnType<typeof vi.fn>).mock.calls[0];
+    // Master task must be targeted, NEVER the synthetic occurrence ID!
+    expect(calledId).toBe('t-walk');
+    expect(calledUpdates).toMatchObject({
+      recurrenceOverrides: {
+        '2026-09-27': {
+          progress: 'completed',
+        },
+      },
+    });
+
+    const updatedMaster = useTaskStore.getState().tasks.find((t) => t.id === 't-walk');
+    expect(updatedMaster?.recurrenceOverrides?.['2026-09-27']).toMatchObject({
+      progress: 'completed',
+    });
+  });
+
+  it('uncompletes an occurrence if it was already completed', async () => {
+    const master = makeTask({
+      id: 't-walk',
+      title: 'Lauf 🚶',
+      due: '2026-09-20',
+      showWithoutTime: true,
+      progress: 'needs-action',
+      recurrenceRules: [createRecurrenceRule('weekly')],
+      recurrenceOverrides: {
+        '2026-09-27': { progress: 'completed' },
+      },
+    });
+    useTaskStore.setState({ tasks: [master] });
+
+    const occurrence: CalendarTask = {
+      ...master,
+      id: 't-walk:2026-09-27',
+      originalId: 't-walk',
+      recurrenceId: '2026-09-27',
+      due: '2026-09-27',
+      progress: 'completed',
+    };
+
+    await useTaskStore.getState().toggleTaskComplete(mockClient as IJMAPClient, occurrence);
+
+    expect(mockClient.updateCalendarTask).toHaveBeenCalledTimes(1);
+    const [calledId, calledUpdates] = (mockClient.updateCalendarTask as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(calledId).toBe('t-walk');
+    expect(calledUpdates).toMatchObject({
+      'recurrenceOverrides/2026-09-27': {
+        progress: 'needs-action',
+      },
+    });
+  });
 });
