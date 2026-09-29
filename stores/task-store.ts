@@ -110,6 +110,15 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       return true;
     }
     const updated = { ...(before ?? { id }), ...updates, updated: new Date().toISOString() } as CalendarTask;
+    // Patch paths like `recurrenceOverrides/<date>` land in the nested map.
+    for (const [k, v] of Object.entries(updates)) {
+      if (k.startsWith('recurrenceOverrides/')) {
+        const overrideKey = k.slice('recurrenceOverrides/'.length);
+        const current = (updated.recurrenceOverrides || {}) as Record<string, unknown>;
+        updated.recurrenceOverrides = { ...current, [overrideKey]: v as any };
+        delete (updated as Record<string, unknown>)[k];
+      }
+    }
     set({
       tasks: get().tasks.map(t => t.id === id ? updated : t),
     });
