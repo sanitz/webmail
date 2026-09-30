@@ -32,4 +32,37 @@ describe('RecurrenceScopeDialog', () => {
     expect(dialog).toHaveAccessibleDescription('description');
     expect(screen.getByRole('button', { name: 'save' })).toBeInTheDocument();
   });
+
+  it.each(['edit', 'rsvp'] as const)('hides "this event only" for %s when single occurrences are blocked', (actionType) => {
+    const onSelect = vi.fn();
+    render(
+      <RecurrenceScopeDialog
+        isOpen={true}
+        actionType={actionType}
+        singleOccurrenceBlocked={true}
+        onSelect={onSelect}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText('this_event')).not.toBeInTheDocument();
+    expect(screen.getByText('single_occurrence_blocked')).toBeInTheDocument();
+    fireEvent.click(screen.getByText(actionType === 'rsvp' ? 'respond' : 'save'));
+    expect(onSelect).toHaveBeenCalledWith(actionType === 'rsvp' ? 'all' : 'this_and_future');
+  });
+
+  it('keeps "this event only" for delete even when single occurrences are blocked', () => {
+    render(
+      <RecurrenceScopeDialog
+        isOpen={true}
+        actionType="delete"
+        singleOccurrenceBlocked={true}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('this_event')).toBeInTheDocument();
+    expect(screen.queryByText('single_occurrence_blocked')).not.toBeInTheDocument();
+  });
 });
