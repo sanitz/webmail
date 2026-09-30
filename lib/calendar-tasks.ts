@@ -78,16 +78,37 @@ export function occurrenceRecurrenceId(task: CalendarTask): string | null {
 /**
  * JMAP patch setting one override on the master: a patch path into an existing
  * recurrenceOverrides map, the whole map when there is none yet.
+ *
+ * Stalwart calcard compatibility (tiger-iac#1307, tiger-iac#1311):
+ * When master has showWithoutTime: true, Stalwart calcard creates DUE;VALUE=DATE.
+ * An RFC 8984 LocalDateTime key (T00:00:00) triggers an RFC 5545 §3.8.4.4 type mismatch,
+ * causing Stalwart to overwrite and destroy the master series. Upgrading the master
+ * to showWithoutTime: false with a T00:00:00 due timestamp aligns types to VALUE=DATE-TIME,
+ * allowing Stalwart to store the override safely without data loss.
  */
 export function overridePatch(
   master: CalendarTask,
   recurrenceId: string,
   entry: Record<string, unknown>,
 ): Partial<CalendarTask> {
+  const cleanEntry = { ...entry };
+  if (typeof cleanEntry.due === 'string' && !cleanEntry.due.includes('T')) {
+    cleanEntry.due = `${cleanEntry.due}T00:00:00`;
+  }
+
   const hasOverrides = Object.keys(master.recurrenceOverrides ?? {}).length > 0;
-  return (hasOverrides
-    ? { [`recurrenceOverrides/${recurrenceId}`]: entry }
-    : { recurrenceOverrides: { [recurrenceId]: entry } }) as Partial<CalendarTask>;
+  const patch: Record<string, unknown> = hasOverrides
+    ? { [`recurrenceOverrides/${recurrenceId}`]: cleanEntry }
+    : { recurrenceOverrides: { [recurrenceId]: cleanEntry } };
+
+  if (master.showWithoutTime) {
+    patch.showWithoutTime = false;
+    if (master.due && !master.due.includes('T')) {
+      patch.due = `${master.due}T00:00:00`;
+    }
+  }
+
+  return patch as Partial<CalendarTask>;
 }
 
 /**
@@ -158,8 +179,10 @@ export function groupTasksByDueDay(
 
   for (const dayTasks of map.values()) {
     dayTasks.sort((a, b) => {
-      const aTimed = a.showWithoutTime ? 0 : 1;
-      const bTimed = b.showWithoutTime ? 0 : 1;
+      const aHasTime = !a.showWithoutTime && !a.due?.endsWith("T00:00:00");
+      const bHasTime = !b.showWithoutTime && !b.due?.endsWith("T00:00:00");
+      const aTimed = aHasTime ? 1 : 0;
+      const bTimed = bHasTime ? 1 : 0;
       if (aTimed !== bTimed) return aTimed - bTimed;
       const byDue = (a.due ?? "").localeCompare(b.due ?? "");
       if (byDue !== 0) return byDue;

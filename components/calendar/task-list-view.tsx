@@ -57,7 +57,8 @@ function getDueDateLabel(due: string, showWithoutTime: boolean, t: ReturnType<ty
   }
 
   // In the app's language, like every other date (R10).
-  const formatted = showWithoutTime
+  const isMidnight = due.endsWith("T00:00:00");
+  const formatted = (showWithoutTime || isMidnight)
     ? formatDate(dueDate, { month: "short", day: "numeric" })
     : formatDate(dueDate, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: timeFormat === "12h" });
 
