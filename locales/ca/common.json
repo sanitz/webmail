@@ -3349,7 +3349,8 @@
       "delete": "Suprimeix",
       "rsvp_title": "Respon a l'esdeveniment periòdic",
       "rsvp_description": "Aquest és un esdeveniment periòdic. A quins esdeveniments s'aplica la vostra resposta?",
-      "respond": "Respon"
+      "respond": "Respon",
+      "single_occurrence_blocked": "De moment no es poden modificar ocurrències individuals de sèries de dia sencer a causa d'un error del servidor de correu. Eliminar una ocurrència individual encara funciona."
     },
     "alerts": {
       "title": "Recordatoris",
@@ -3487,7 +3488,8 @@
       "task_due": "Tasca pendent",
       "event_exported": "Esdeveniment exportat",
       "title_copied": "Títol copiat",
-      "link_copied": "Enllaç copiat"
+      "link_copied": "Enllaç copiat",
+      "single_occurrence_blocked": "De moment no es poden modificar ocurrències individuals de sèries de dia sencer (error del servidor de correu)."
     },
     "status": {
       "loading_calendars": "Carregant els calendaris...",

@@ -3349,7 +3349,8 @@
       "delete": "Supprimer",
       "rsvp_title": "Répondre à l'événement récurrent",
       "rsvp_description": "Ceci est un événement récurrent. À quels événements votre réponse s'applique-t-elle ?",
-      "respond": "Répondre"
+      "respond": "Répondre",
+      "single_occurrence_blocked": "Les occurrences individuelles des séries sur toute la journée ne peuvent pas être modifiées pour le moment en raison d'un bug du serveur de messagerie. La suppression d'une occurrence reste possible."
     },
     "alerts": {
       "title": "Rappel",
@@ -3487,7 +3488,8 @@
       "task_due": "Tâche à échéance",
       "event_exported": "Événement exporté",
       "title_copied": "Titre copié",
-      "link_copied": "Lien copié"
+      "link_copied": "Lien copié",
+      "single_occurrence_blocked": "Les occurrences individuelles des séries sur toute la journée ne peuvent pas être modifiées pour le moment (bug du serveur de messagerie)."
     },
     "status": {
       "loading_calendars": "Chargement des calendriers...",

@@ -3349,7 +3349,8 @@
       "delete": "Verwijderen",
       "rsvp_title": "Reageren op terugkerend evenement",
       "rsvp_description": "Dit is een terugkerend evenement. Voor welke evenementen geldt uw reactie?",
-      "respond": "Reageren"
+      "respond": "Reageren",
+      "single_occurrence_blocked": "Afzonderlijke exemplaren van hele-dagreeksen kunnen door een fout in de mailserver momenteel niet worden gewijzigd. Een afzonderlijk exemplaar verwijderen werkt nog wel."
     },
     "alerts": {
       "title": "Herinnering",
@@ -3461,7 +3462,8 @@
       "task_due": "Taak vervalt",
       "event_exported": "Afspraak geëxporteerd",
       "title_copied": "Titel gekopieerd",
-      "link_copied": "Link gekopieerd"
+      "link_copied": "Link gekopieerd",
+      "single_occurrence_blocked": "Afzonderlijke exemplaren van hele-dagreeksen kunnen momenteel niet worden gewijzigd (fout in de mailserver)."
     },
     "status": {
       "loading_calendars": "Agenda's laden...",

@@ -101,6 +101,7 @@ import { useMountainViewShell } from "@/hooks/use-mountain-view-shell";
 import { calendarHooks } from "@/lib/plugin-hooks";
 import { eventToView } from "@/lib/plugin-projection";
 import { isRecurringTask, executeTaskScopeAction, type PendingTaskScopeAction } from "@/lib/calendar-task-scope";
+import { AllDaySeriesOverrideBlockedError, isSingleOccurrenceChangeBlocked } from "@/lib/all-day-series-block";
 
 type PendingScopeAction =
   | { type: "edit"; event: CalendarEvent; updates: Partial<CalendarEvent>; sendScheduling?: boolean }
@@ -668,13 +669,17 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
 
   const handleToggleTaskComplete = useCallback((task: CalendarTask) => {
     if (!client) return;
-    if (isRecurringTask(task) && !task.recurrenceId && !task.id.includes(':')) {
+    // An all-day series advances directly (no overrides, lib/all-day-series-block.ts).
+    if (isRecurringTask(task) && !task.recurrenceId && !task.id.includes(':') && !task.showWithoutTime) {
       const newProgress = task.progress === 'completed' ? 'needs-action' : 'completed';
       setPendingScopeAction({ type: "edit_task", task, updates: { progress: newProgress } });
       return;
     }
-    toggleTaskCompleteFn(client, task);
-  }, [client, toggleTaskCompleteFn]);
+    toggleTaskCompleteFn(client, task).catch((err) => {
+      if (!(err instanceof AllDaySeriesOverrideBlockedError)) throw err;
+      toast.error(t("notifications.single_occurrence_blocked"));
+    });
+  }, [client, toggleTaskCompleteFn, t]);
 
   // false: a plugin stopped it and said why, so the task form stays open.
   const handleSaveTask = useCallback(async (data: Partial<import("@/lib/jmap/types").CalendarTask>) => {
@@ -1175,6 +1180,11 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
 
   const handleScopeSelect = useCallback(async (scope: RecurrenceEditScope) => {
     if (!client || !pendingScopeAction) { toast.error(t("notifications.event_error")); return; }
+    if (scope === "this" && isSingleOccurrenceChangeBlocked(pendingScopeAction)) {
+      setPendingScopeAction(null);
+      toast.error(t("notifications.single_occurrence_blocked"));
+      return;
+    }
     if (pendingScopeAction.type === "rsvp") {
       const { event, participantId, status } = pendingScopeAction;
       setPendingScopeAction(null);
@@ -1382,8 +1392,10 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
       if (!(await updateEvent(client, detailEvent.id, { description: newDescription }))) return;
       setDetailEvent({ ...detailEvent, description: newDescription });
       toast.success(t("detail.note_saved"));
-    } catch {
-      toast.error(t("notifications.event_error"));
+    } catch (err) {
+      toast.error(t(err instanceof AllDaySeriesOverrideBlockedError
+        ? "notifications.single_occurrence_blocked"
+        : "notifications.event_error"));
     }
   }, [detailEvent, client, updateEvent, t]);
 
@@ -2218,6 +2230,7 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
             ? "rsvp"
             : "edit"
         }
+        singleOccurrenceBlocked={!!pendingScopeAction && isSingleOccurrenceChangeBlocked(pendingScopeAction)}
         onSelect={handleScopeSelect}
         onClose={() => setPendingScopeAction(null)}
       />

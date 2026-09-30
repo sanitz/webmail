@@ -3349,7 +3349,8 @@
       "delete": "Delete",
       "rsvp_title": "Respond to recurring event",
       "rsvp_description": "This is a recurring event. Which events does your response apply to?",
-      "respond": "Respond"
+      "respond": "Respond",
+      "single_occurrence_blocked": "Single occurrences of all-day series can't be changed right now because of a mail server bug. Deleting a single occurrence still works."
     },
     "alerts": {
       "title": "Reminders",
@@ -3487,7 +3488,8 @@
       "task_due": "Task due",
       "event_exported": "Event exported",
       "title_copied": "Title copied",
-      "link_copied": "Link copied"
+      "link_copied": "Link copied",
+      "single_occurrence_blocked": "Single occurrences of all-day series can't be changed right now (mail server bug)."
     },
     "status": {
       "loading_calendars": "Loading calendars...",

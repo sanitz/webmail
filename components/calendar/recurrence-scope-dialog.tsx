@@ -11,6 +11,8 @@ export type RecurrenceEditScope = "this" | "this_and_future" | "all";
 interface RecurrenceScopeDialogProps {
   isOpen: boolean;
   actionType: "edit" | "delete" | "rsvp";
+  /** All-day series: Stalwart loses the series on a single-occurrence change (tiger-iac#1311). */
+  singleOccurrenceBlocked?: boolean;
   onSelect: (scope: RecurrenceEditScope) => void;
   onClose: () => void;
 }
@@ -18,6 +20,7 @@ interface RecurrenceScopeDialogProps {
 export function RecurrenceScopeDialog({
   isOpen,
   actionType,
+  singleOccurrenceBlocked = false,
   onSelect,
   onClose,
 }: RecurrenceScopeDialogProps) {
@@ -35,16 +38,18 @@ export function RecurrenceScopeDialog({
 
   const isDelete = actionType === "delete";
   const isRsvp = actionType === "rsvp";
+  // Deleting one occurrence is stored as an exclusion and stays safe.
+  const hideThis = singleOccurrenceBlocked && !isDelete;
 
   // An attendee cannot split the organizer's series, so an answer covers
   // one occurrence or all of them.
   const options: { value: RecurrenceEditScope; label: string }[] = [
-    { value: "this", label: t("this_event") },
+    ...(hideThis ? [] : [{ value: "this" as const, label: t("this_event") }]),
     ...(isRsvp ? [] : [{ value: "this_and_future" as const, label: t("this_and_future") }]),
     { value: "all", label: t("all_events") },
   ];
   // The choice outlives the dialog closing; fall back when it is not offered.
-  const choice = options.some((option) => option.value === selected) ? selected : "this";
+  const choice = options.some((option) => option.value === selected) ? selected : options[0].value;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center z-[60] p-4 animate-in fade-in duration-150">
@@ -74,6 +79,11 @@ export function RecurrenceScopeDialog({
               <p id={`${id}-desc`} className="text-sm text-muted-foreground mt-1">
                 {isRsvp ? t("rsvp_description") : t("description")}
               </p>
+              {hideThis && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  {t("single_occurrence_blocked")}
+                </p>
+              )}
             </div>
           </div>
 

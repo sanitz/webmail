@@ -3349,7 +3349,8 @@
       "delete": "삭제",
       "rsvp_title": "반복 일정에 응답",
       "rsvp_description": "반복되는 일정이에요. 어떤 일정에 응답할까요?",
-      "respond": "응답"
+      "respond": "응답",
+      "single_occurrence_blocked": "메일 서버 버그로 인해 현재 종일 반복 일정의 단일 항목을 변경할 수 없습니다. 단일 항목 삭제는 계속 가능합니다."
     },
     "alerts": {
       "title": "알림",
@@ -3461,7 +3462,8 @@
       "task_due": "할 일 기한이 다가와요",
       "event_exported": "이벤트 내보내기 완료",
       "title_copied": "제목이 복사되었습니다",
-      "link_copied": "링크가 복사되었습니다"
+      "link_copied": "링크가 복사되었습니다",
+      "single_occurrence_blocked": "현재 종일 반복 일정의 단일 항목을 변경할 수 없습니다(메일 서버 버그)."
     },
     "status": {
       "loading_calendars": "캘린더를 불러오는 중...",
