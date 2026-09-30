@@ -151,11 +151,18 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         tasks: get().tasks.map((t) => {
           if (t.id !== masterId) return t;
           const current = t.recurrenceOverrides || {};
-          return {
+          const next: CalendarTask = {
             ...t,
             recurrenceOverrides: { ...current, [recurrenceId]: overrideEntry },
             updated: new Date().toISOString(),
           };
+          if (t.showWithoutTime) {
+            next.showWithoutTime = false;
+            if (t.due && !t.due.includes('T')) {
+              next.due = `${t.due}T00:00:00`;
+            }
+          }
+          return next;
         }),
       });
       return;
