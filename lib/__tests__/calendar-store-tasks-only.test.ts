@@ -76,10 +76,10 @@ describe('useCalendarStore - task-only calendar persistence (#1208)', () => {
 
     const mockClient = {
       getParticipantIdentities: vi.fn().mockResolvedValue([]),
-      getAllCalendars: vi.fn().mockResolvedValue([
+      getAllCalendarsWithFailures: vi.fn().mockResolvedValue({ calendars: [
         { id: 'cal-custom-task', name: 'NurAufgaben', isTasksOnly: false },
         { id: 'cal-regular', name: 'Privat', isTasksOnly: false },
-      ] as Calendar[]),
+      ] as Calendar[], failedAccountIds: [] }),
     } as unknown as IJMAPClient;
 
     await useCalendarStore.getState().fetchCalendars(mockClient);
@@ -100,15 +100,15 @@ describe('useCalendarStore - task-only calendar persistence (#1208)', () => {
     });
 
     const mockClient1 = {
-      getAllCalendars: vi.fn().mockResolvedValue([
+      getAllCalendarsWithFailures: vi.fn().mockResolvedValue({ calendars: [
         { id: 'cal-acct1-events', name: 'Main Work', isTasksOnly: false },
-      ] as Calendar[]),
+      ] as Calendar[], failedAccountIds: [] }),
     } as unknown as IJMAPClient;
 
     const mockClient2 = {
-      getAllCalendars: vi.fn().mockResolvedValue([
+      getAllCalendarsWithFailures: vi.fn().mockResolvedValue({ calendars: [
         { id: 'cal-acct2-tasks', name: 'Private Todo', isTasksOnly: false },
-      ] as Calendar[]),
+      ] as Calendar[], failedAccountIds: [] }),
     } as unknown as IJMAPClient;
 
     await useCalendarStore.getState().fetchAllAccountsCalendars([
