@@ -1,4 +1,5 @@
 import { format, parseISO, startOfDay, endOfDay } from "date-fns";
+import { AllDaySeriesOverrideBlockedError, isAllDayOverrideBlocked } from "@/lib/all-day-series-block";
 import type { CalendarTask } from "@/lib/jmap/types";
 import { generateDates } from "@/lib/recurrence-expansion";
 
@@ -79,18 +80,17 @@ export function occurrenceRecurrenceId(task: CalendarTask): string | null {
  * JMAP patch setting one override on the master: a patch path into an existing
  * recurrenceOverrides map, the whole map when there is none yet.
  *
- * Stalwart calcard compatibility (tiger-iac#1307, tiger-iac#1311):
- * When master has showWithoutTime: true, Stalwart calcard creates DUE;VALUE=DATE.
- * An RFC 8984 LocalDateTime key (T00:00:00) triggers an RFC 5545 §3.8.4.4 type mismatch,
- * causing Stalwart to overwrite and destroy the master series. Upgrading the master
- * to showWithoutTime: false with a T00:00:00 due timestamp aligns types to VALUE=DATE-TIME,
- * allowing Stalwart to store the override safely without data loss.
+ * Throws AllDaySeriesOverrideBlockedError for an override with content on an
+ * all-day series (lib/all-day-series-block.ts).
  */
 export function overridePatch(
   master: CalendarTask,
   recurrenceId: string,
   entry: Record<string, unknown>,
 ): Partial<CalendarTask> {
+  if (isAllDayOverrideBlocked(master, entry)) {
+    throw new AllDaySeriesOverrideBlockedError();
+  }
   const cleanEntry = { ...entry };
   if (typeof cleanEntry.due === 'string' && !cleanEntry.due.includes('T')) {
     cleanEntry.due = `${cleanEntry.due}T00:00:00`;
@@ -100,13 +100,6 @@ export function overridePatch(
   const patch: Record<string, unknown> = hasOverrides
     ? { [`recurrenceOverrides/${recurrenceId}`]: cleanEntry }
     : { recurrenceOverrides: { [recurrenceId]: cleanEntry } };
-
-  if (master.showWithoutTime) {
-    patch.showWithoutTime = false;
-    if (master.due && !master.due.includes('T')) {
-      patch.due = `${master.due}T00:00:00`;
-    }
-  }
 
   return patch as Partial<CalendarTask>;
 }

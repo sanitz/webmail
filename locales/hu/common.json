@@ -4360,7 +4360,8 @@
       "delete": "Törlés",
       "rsvp_title": "Válasz ismétlődő eseményre",
       "rsvp_description": "Ez egy ismétlődő esemény. Mely eseményekre vonatkozzon a válaszod?",
-      "respond": "Válasz"
+      "respond": "Válasz",
+      "single_occurrence_blocked": "Egész napos sorozatok egyes előfordulásai egy levelezőszerver-hiba miatt jelenleg nem módosíthatók. Egy előfordulás törlése továbbra is működik."
     },
     "discard": {
       "title": "Elveti a változtatásokat?",
@@ -4526,7 +4527,8 @@
       "event_exported": "Esemény exportálva",
       "title_copied": "Cím másolva",
       "link_copied": "Link másolva",
-      "title_alert": "Emlékeztető: {title}"
+      "title_alert": "Emlékeztető: {title}",
+      "single_occurrence_blocked": "Egész napos sorozatok egyes előfordulásai jelenleg nem módosíthatók (levelezőszerver-hiba)."
     },
     "status": {
       "loading_calendars": "Naptárak betöltése...",

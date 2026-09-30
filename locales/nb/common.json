@@ -4360,7 +4360,8 @@
       "delete": "Slett",
       "rsvp_title": "Svar på gjentakende hendelse",
       "rsvp_description": "Dette er en gjentakende hendelse. Hvilke hendelser gjelder svaret ditt for?",
-      "respond": "Svar"
+      "respond": "Svar",
+      "single_occurrence_blocked": "Enkeltforekomster av heldagsserier kan for øyeblikket ikke endres på grunn av en feil i e-postserveren. Sletting av en enkeltforekomst fungerer fortsatt."
     },
     "discard": {
       "title": "Vil du forkaste endringene?",
@@ -4526,7 +4527,8 @@
       "event_exported": "Hendelsen er eksportert",
       "title_copied": "Tittelen er kopiert",
       "link_copied": "Lenken er kopiert",
-      "title_alert": "Påminnelse: {title}"
+      "title_alert": "Påminnelse: {title}",
+      "single_occurrence_blocked": "Enkeltforekomster av heldagsserier kan for øyeblikket ikke endres (feil i e-postserveren)."
     },
     "status": {
       "loading_calendars": "Laster inn kalendere...",

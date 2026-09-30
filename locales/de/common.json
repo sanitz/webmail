@@ -4360,7 +4360,8 @@
       "delete": "Löschen",
       "rsvp_title": "Auf wiederkehrendes Ereignis antworten",
       "rsvp_description": "Dies ist ein wiederkehrendes Ereignis. Für welche Ereignisse gilt Ihre Antwort?",
-      "respond": "Antworten"
+      "respond": "Antworten",
+      "single_occurrence_blocked": "Einzelne Termine einer ganztägigen Serie lassen sich wegen eines Fehlers im Mailserver vorerst nicht ändern. Einzelne Termine löschen funktioniert weiterhin."
     },
     "discard": {
       "title": "Änderungen verwerfen?",
@@ -4500,7 +4501,8 @@
       "event_exported": "Termin exportiert",
       "title_copied": "Titel kopiert",
       "link_copied": "Link kopiert",
-      "title_alert": "Erinnerung: {title}"
+      "title_alert": "Erinnerung: {title}",
+      "single_occurrence_blocked": "Einzelne Termine ganztägiger Serien lassen sich vorerst nicht ändern (Fehler im Mailserver)."
     },
     "status": {
       "loading_calendars": "Kalender werden geladen...",

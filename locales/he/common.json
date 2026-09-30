@@ -4278,7 +4278,8 @@
       "delete": "לִמְחוֹק",
       "rsvp_title": "השב לאירוע חוזר",
       "rsvp_description": "זהו אירוע שחוזר על עצמו. על אילו אירועים חלה התשובה שלך?",
-      "respond": "השב"
+      "respond": "השב",
+      "single_occurrence_blocked": "לא ניתן כרגע לשנות מופע בודד של סדרה של יום שלם בגלל תקלה בשרת הדואר. מחיקת מופע בודד עדיין אפשרית."
     },
     "discard": {
       "title": "לבטל את השינויים?",
@@ -4418,7 +4419,8 @@
       "event_exported": "אירוע ייצא",
       "title_copied": "כותרת הועתקה",
       "link_copied": "קישור הועתק",
-      "title_alert": "תזכורת: {title}"
+      "title_alert": "תזכורת: {title}",
+      "single_occurrence_blocked": "לא ניתן כרגע לשנות מופע בודד של סדרה של יום שלם (תקלה בשרת הדואר)."
     },
     "status": {
       "loading_calendars": "טוען יומנים...",

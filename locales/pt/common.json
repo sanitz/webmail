@@ -4360,7 +4360,8 @@
       "delete": "Excluir",
       "rsvp_title": "Responder a evento recorrente",
       "rsvp_description": "Este é um evento recorrente. A quais eventos sua resposta se aplica?",
-      "respond": "Responder"
+      "respond": "Responder",
+      "single_occurrence_blocked": "De momento não é possível alterar ocorrências individuais de séries de dia inteiro devido a um erro do servidor de e-mail. Eliminar uma ocorrência individual continua a funcionar."
     },
     "discard": {
       "title": "Descartar alterações?",
@@ -4526,7 +4527,8 @@
       "event_exported": "Evento exportado",
       "title_copied": "Título copiado",
       "link_copied": "Link copiado",
-      "title_alert": "Lembrete: {title}"
+      "title_alert": "Lembrete: {title}",
+      "single_occurrence_blocked": "De momento não é possível alterar ocorrências individuais de séries de dia inteiro (erro do servidor de e-mail)."
     },
     "status": {
       "loading_calendars": "Carregando calendários...",

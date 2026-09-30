@@ -8,6 +8,7 @@ import { EventCard } from "./event-card";
 import { CalendarTaskChip } from "./task-chip";
 import { buildWeekSegments, getEventDayBounds, getPrimaryCalendarId } from "@/lib/calendar-utils";
 import { groupTasksByDueDay } from "@/lib/calendar-tasks";
+import { AllDaySeriesOverrideBlockedError } from "@/lib/all-day-series-block";
 import { isDeclinedByUser } from "@/lib/calendar-participants";
 import type { CalendarEvent, Calendar, CalendarTask } from "@/lib/jmap/types";
 import { useAuthStore } from "@/stores/auth-store";
@@ -360,7 +361,9 @@ export function CalendarMonthView({
       if (event && onMoveEvent) await onMoveEvent(event, moved.updates, moved.sendSchedulingMessages, "move");
       else await useCalendarStore.getState().updateEvent(client, data.eventId, moved.updates, moved.sendSchedulingMessages);
     } catch (error) {
-      toast.error(describeError(error, t("notifications.event_move_error")));
+      toast.error(error instanceof AllDaySeriesOverrideBlockedError
+        ? t("notifications.single_occurrence_blocked")
+        : describeError(error, t("notifications.event_move_error")));
     }
   }, [t, describeError, currentUserEmails, onMoveEvent]);
 

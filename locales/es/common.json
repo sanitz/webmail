@@ -4360,7 +4360,8 @@
       "delete": "Eliminar",
       "rsvp_title": "Responder a evento recurrente",
       "rsvp_description": "Este es un evento recurrente. ¿A qué eventos se aplica su respuesta?",
-      "respond": "Responder"
+      "respond": "Responder",
+      "single_occurrence_blocked": "Por ahora no se pueden modificar repeticiones individuales de series de todo el día debido a un error del servidor de correo. Eliminar una repetición individual sigue funcionando."
     },
     "discard": {
       "title": "¿Descartar los cambios?",
@@ -4500,7 +4501,8 @@
       "event_exported": "Evento exportado",
       "title_copied": "Título copiado",
       "link_copied": "Enlace copiado",
-      "title_alert": "Recordatorio: {title}"
+      "title_alert": "Recordatorio: {title}",
+      "single_occurrence_blocked": "Por ahora no se pueden modificar repeticiones individuales de series de todo el día (error del servidor de correo)."
     },
     "status": {
       "loading_calendars": "Cargando calendarios...",

@@ -196,14 +196,8 @@ export function TaskModal({
           due = `${dueDate}T${dueTime}:00`;
           showWithoutTime = false;
         } else {
-          const isRecurring = recurrence !== "none" || Boolean(task?.recurrenceRules?.length);
-          if (isRecurring) {
-            due = `${dueDate}T00:00:00`;
-            showWithoutTime = false;
-          } else {
-            due = dueDate;
-            showWithoutTime = true;
-          }
+          due = dueDate;
+          showWithoutTime = true;
         }
       }
 

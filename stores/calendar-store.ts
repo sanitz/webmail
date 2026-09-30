@@ -13,6 +13,7 @@ import { SchedulingDeniedError } from '@/lib/jmap/scheduling-error';
 import { hasAnsweredAttendees, participantLimitOf } from '@/lib/calendar-participants';
 import { withOwnAlertIds } from '@/lib/calendar-alerts';
 import { jmapSetError } from '@/lib/jmap/jmap-error';
+import { AllDaySeriesOverrideBlockedError, isAllDayOverrideBlocked } from '@/lib/all-day-series-block';
 import {
   baseEventStoreId,
   buildFallbackExcludePatch,
@@ -244,6 +245,7 @@ async function updateOccurrence(
   sendSchedulingMessages: boolean | undefined,
   targetAccountId: string | undefined,
 ): Promise<void> {
+  if (isAllDayOverrideBlocked(instance, patchFor({}))) throw new AllDaySeriesOverrideBlockedError();
   if (!syntheticIdRejected.has(client)) {
     const patch = buildOccurrencePatch(patchFor({}));
     const options: CalendarEventUpdateOptions | undefined = patch.sequence != null ? { keepSequence: true } : undefined;
@@ -347,6 +349,7 @@ async function updateBrowserOccurrence(
   sendSchedulingMessages: boolean | undefined,
 ): Promise<void> {
   const occurrence = target.storeEvent!;
+  if (isAllDayOverrideBlocked(occurrence, updates)) throw new AllDaySeriesOverrideBlockedError();
   const patch = buildFallbackOverridePatch(occurrence, withNewOverrideDetails(occurrence, updates, { seriesKeys: true }));
   if (!patch) throw new Error('Cannot resolve the occurrence to override');
   await updateBaseEvent(client, target.realId, patch, sendSchedulingMessages, target.targetAccountId);

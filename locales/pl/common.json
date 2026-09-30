@@ -4360,7 +4360,8 @@
       "delete": "Usuń",
       "rsvp_title": "Odpowiedz na wydarzenie cykliczne",
       "rsvp_description": "To jest wydarzenie cykliczne. Których wydarzeń dotyczy Twoja odpowiedź?",
-      "respond": "Odpowiedz"
+      "respond": "Odpowiedz",
+      "single_occurrence_blocked": "Z powodu błędu serwera poczty nie można obecnie zmieniać pojedynczych wystąpień serii całodniowych. Usuwanie pojedynczego wystąpienia nadal działa."
     },
     "discard": {
       "title": "Odrzucić zmiany?",
@@ -4500,7 +4501,8 @@
       "event_exported": "Wydarzenie wyeksportowane",
       "title_copied": "Tytuł skopiowany",
       "link_copied": "Link skopiowany",
-      "title_alert": "Przypomnienie: {title}"
+      "title_alert": "Przypomnienie: {title}",
+      "single_occurrence_blocked": "Nie można obecnie zmieniać pojedynczych wystąpień serii całodniowych (błąd serwera poczty)."
     },
     "status": {
       "loading_calendars": "Ładowanie kalendarzy...",

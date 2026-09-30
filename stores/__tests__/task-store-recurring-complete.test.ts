@@ -3,6 +3,7 @@ import { useTaskStore } from '../task-store';
 import type { CalendarTask } from '@/lib/jmap/types';
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
 import { createRecurrenceRule } from '@/lib/recurrence-rule';
+import { AllDaySeriesOverrideBlockedError } from '@/lib/all-day-series-block';
 
 function makeTask(overrides: Partial<CalendarTask> = {}): CalendarTask {
   return {
@@ -121,8 +122,8 @@ describe('task-store recurring toggleTaskComplete', () => {
     const master = makeTask({
       id: 't-walk',
       title: 'Lauf 🚶',
-      due: '2026-09-20',
-      showWithoutTime: true,
+      due: '2026-09-20T07:00:00',
+      showWithoutTime: false,
       progress: 'needs-action',
       recurrenceRules: [createRecurrenceRule('weekly')],
     });
@@ -130,10 +131,10 @@ describe('task-store recurring toggleTaskComplete', () => {
 
     const occurrence: CalendarTask = {
       ...master,
-      id: 't-walk:2026-09-27',
+      id: 't-walk:2026-09-27T07:00:00',
       originalId: 't-walk',
-      recurrenceId: '2026-09-27',
-      due: '2026-09-27',
+      recurrenceId: '2026-09-27T07:00:00',
+      due: '2026-09-27T07:00:00',
     };
 
     await useTaskStore.getState().toggleTaskComplete(mockClient as IJMAPClient, occurrence);
@@ -144,14 +145,14 @@ describe('task-store recurring toggleTaskComplete', () => {
     expect(calledId).toBe('t-walk');
     expect(calledUpdates).toMatchObject({
       recurrenceOverrides: {
-        '2026-09-27': {
+        '2026-09-27T07:00:00': {
           progress: 'completed',
         },
       },
     });
 
     const updatedMaster = useTaskStore.getState().tasks.find((t) => t.id === 't-walk');
-    expect(updatedMaster?.recurrenceOverrides?.['2026-09-27']).toMatchObject({
+    expect(updatedMaster?.recurrenceOverrides?.['2026-09-27T07:00:00']).toMatchObject({
       progress: 'completed',
     });
   });
@@ -160,22 +161,22 @@ describe('task-store recurring toggleTaskComplete', () => {
     const master = makeTask({
       id: 't-walk',
       title: 'Lauf 🚶',
-      due: '2026-09-20',
-      showWithoutTime: true,
+      due: '2026-09-20T07:00:00',
+      showWithoutTime: false,
       progress: 'needs-action',
       recurrenceRules: [createRecurrenceRule('weekly')],
       recurrenceOverrides: {
-        '2026-09-27': { progress: 'completed' },
+        '2026-09-27T07:00:00': { progress: 'completed' },
       },
     });
     useTaskStore.setState({ tasks: [master] });
 
     const occurrence: CalendarTask = {
       ...master,
-      id: 't-walk:2026-09-27',
+      id: 't-walk:2026-09-27T07:00:00',
       originalId: 't-walk',
-      recurrenceId: '2026-09-27',
-      due: '2026-09-27',
+      recurrenceId: '2026-09-27T07:00:00',
+      due: '2026-09-27T07:00:00',
       progress: 'completed',
     };
 
@@ -185,9 +186,54 @@ describe('task-store recurring toggleTaskComplete', () => {
     const [calledId, calledUpdates] = (mockClient.updateCalendarTask as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(calledId).toBe('t-walk');
     expect(calledUpdates).toMatchObject({
-      'recurrenceOverrides/2026-09-27': {
+      'recurrenceOverrides/2026-09-27T07:00:00': {
         progress: 'needs-action',
       },
     });
   });
+
+  it('refuses to complete one occurrence of an all-day series and writes nothing (tiger-iac#1311)', async () => {
+    const master = makeTask({
+      id: 't-bin',
+      due: '2026-09-20',
+      showWithoutTime: true,
+      recurrenceRules: [createRecurrenceRule('weekly')],
+    });
+    useTaskStore.setState({ tasks: [master] });
+    const occurrence: CalendarTask = {
+      ...master,
+      id: 't-bin:2026-09-27T00:00:00',
+      originalId: 't-bin',
+      recurrenceId: '2026-09-27T00:00:00',
+      due: '2026-09-27',
+    };
+
+    await expect(
+      useTaskStore.getState().toggleTaskComplete(mockClient as IJMAPClient, occurrence),
+    ).rejects.toBeInstanceOf(AllDaySeriesOverrideBlockedError);
+    expect(mockClient.updateCalendarTask).not.toHaveBeenCalled();
+    expect(useTaskStore.getState().tasks[0]).toEqual(master);
+  });
+
+  it('completes the current occurrence of an all-day series by advancing the series, without an override (tiger-iac#1311)', async () => {
+    const master = makeTask({
+      id: 't-bin',
+      due: '2026-09-20',
+      showWithoutTime: true,
+      recurrenceRules: [createRecurrenceRule('weekly')],
+    });
+    useTaskStore.setState({ tasks: [master] });
+    const current: CalendarTask = {
+      ...master,
+      id: 't-bin:2026-09-20T00:00:00',
+      originalId: 't-bin',
+      recurrenceId: '2026-09-20T00:00:00',
+    };
+
+    await useTaskStore.getState().toggleTaskComplete(mockClient as IJMAPClient, current);
+
+    expect(mockClient.updateCalendarTask).toHaveBeenCalledWith('t-bin', { progress: 'needs-action', due: '2026-09-27' });
+    expect(useTaskStore.getState().tasks[0]).toMatchObject({ due: '2026-09-27', showWithoutTime: true });
+  });
 });
+
