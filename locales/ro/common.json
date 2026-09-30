@@ -3243,7 +3243,8 @@
       "delete": "Șterge",
       "rsvp_title": "Răspundeți la evenimentul recurent",
       "rsvp_description": "Acesta este un eveniment recurent. Pentru ce evenimente se aplică răspunsul dvs.?",
-      "respond": "Răspundeți"
+      "respond": "Răspundeți",
+      "single_occurrence_blocked": "Momentan nu se pot modifica apariții individuale ale seriilor de o zi întreagă din cauza unei erori a serverului de e-mail. Ștergerea unei apariții individuale funcționează în continuare."
     },
     "alerts": {
       "title": "Memento-uri",
@@ -3381,7 +3382,8 @@
       "task_due": "Termen de finalizare a sarcinii",
       "event_exported": "Eveniment exportat",
       "title_copied": "Titlu copiat",
-      "link_copied": "Link copiat"
+      "link_copied": "Link copiat",
+      "single_occurrence_blocked": "Momentan nu se pot modifica apariții individuale ale seriilor de o zi întreagă (eroare a serverului de e-mail)."
     },
     "status": {
       "loading_calendars": "Se încarcă calendarele...",

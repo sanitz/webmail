@@ -3243,7 +3243,8 @@
       "delete": "Odstranit",
       "rsvp_title": "Odpovědět na opakující se událost",
       "rsvp_description": "Toto je opakující se událost. Na které události se vaše odpověď vztahuje?",
-      "respond": "Odpovědět"
+      "respond": "Odpovědět",
+      "single_occurrence_blocked": "Jednotlivé výskyty celodenních sérií nyní kvůli chybě poštovního serveru nelze měnit. Smazání jednotlivého výskytu stále funguje."
     },
     "alerts": {
       "title": "Připomenutí",
@@ -3355,7 +3356,8 @@
       "task_due": "Termín úkolu",
       "event_exported": "Událost exportována",
       "title_copied": "Název zkopírován",
-      "link_copied": "Odkaz zkopírován"
+      "link_copied": "Odkaz zkopírován",
+      "single_occurrence_blocked": "Jednotlivé výskyty celodenních sérií nyní nelze měnit (chyba poštovního serveru)."
     },
     "status": {
       "loading_calendars": "Načítání kalendářů...",

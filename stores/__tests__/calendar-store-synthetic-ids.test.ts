@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useCalendarStore, resolveMutationTarget } from '../calendar-store';
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
 import type { CalendarEvent } from '@/lib/jmap/types';
+import { AllDaySeriesOverrideBlockedError } from '@/lib/all-day-series-block';
 
 // Occurrences produced by server-side recurrence expansion carry synthetic
 // ids (lib/recurrence-instances.ts). The store writes "this occurrence only"
@@ -423,5 +424,38 @@ describe('rsvpEvent on an expanded occurrence', () => {
       useCalendarStore.getState().rsvpEvent(client, 'maaaaab', 'p2', 'declined', undefined, 'occurrence'),
     ).rejects.toThrow();
     expect(client.updateCalendarEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe('single occurrences of all-day series (tiger-iac#1311)', () => {
+  // Stalwart up to v0.16.24 replaces an all-day series by any override with
+  // content; exclusions (deleting one occurrence) are safe.
+  const allDay = (overrides: Partial<CalendarEvent> = {}) => occurrence({
+    start: '2026-09-08T00:00:00', duration: 'P1D', timeZone: null, showWithoutTime: true,
+    recurrenceId: '2026-09-08T00:00:00', recurrenceIdTimeZone: null, recurrenceOverrides: null, ...overrides,
+  });
+
+  it.each([
+    ['synthetic id', {}],
+    ['browser-expanded', { id: 'b:2026-09-08T00:00:00', originalId: 'b', baseEventId: undefined }],
+  ])('refuses to change a %s occurrence and writes nothing', async (_name, overrides) => {
+    const client = fakeClient();
+    const occ = allDay(overrides);
+    useCalendarStore.setState({ events: [occ] });
+
+    await expect(
+      useCalendarStore.getState().updateEvent(client, occ.id, { start: '2026-09-09' }),
+    ).rejects.toBeInstanceOf(AllDaySeriesOverrideBlockedError);
+    expect(client.updateCalendarEvent).not.toHaveBeenCalled();
+    expect(useCalendarStore.getState().events[0]).toEqual(occ);
+  });
+
+  it('still deletes a single all-day occurrence', async () => {
+    const client = fakeClient();
+    useCalendarStore.setState({ events: [allDay()] });
+
+    await useCalendarStore.getState().deleteEvent(client, 'maaaaab');
+
+    expect(client.deleteCalendarEvent).toHaveBeenCalledWith('maaaaab', undefined, undefined);
   });
 });

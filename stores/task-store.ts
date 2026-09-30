@@ -131,6 +131,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     const master = get().tasks.find((t) => t.id === masterId) || task;
     const recurrenceId = occurrenceRecurrenceId(task);
 
+    // All-day series take no overrides (lib/all-day-series-block.ts): completing
+    // the current occurrence advances the series instead, like the series itself.
+    if (isOccurrence && recurrenceId && master !== task && master.showWithoutTime
+      && task.progress !== 'completed' && recurrenceId.slice(0, 10) === master.due?.slice(0, 10)) {
+      return get().toggleTaskComplete(client, master);
+    }
+
     if (isOccurrence && recurrenceId) {
       const isCompleted = task.progress === 'completed';
       const newProgress: CalendarTask['progress'] = isCompleted ? 'needs-action' : 'completed';
@@ -151,18 +158,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         tasks: get().tasks.map((t) => {
           if (t.id !== masterId) return t;
           const current = t.recurrenceOverrides || {};
-          const next: CalendarTask = {
+          return {
             ...t,
             recurrenceOverrides: { ...current, [recurrenceId]: overrideEntry },
             updated: new Date().toISOString(),
           };
-          if (t.showWithoutTime) {
-            next.showWithoutTime = false;
-            if (t.due && !t.due.includes('T')) {
-              next.due = `${t.due}T00:00:00`;
-            }
-          }
-          return next;
         }),
       });
       return;

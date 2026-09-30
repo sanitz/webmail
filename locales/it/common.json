@@ -3243,7 +3243,8 @@
       "delete": "Elimina",
       "rsvp_title": "Rispondi a evento ricorrente",
       "rsvp_description": "Questo è un evento ricorrente. A quali eventi si applica la tua risposta?",
-      "respond": "Rispondi"
+      "respond": "Rispondi",
+      "single_occurrence_blocked": "Al momento non è possibile modificare singole occorrenze di serie di un giorno intero a causa di un bug del server di posta. L'eliminazione di una singola occorrenza funziona ancora."
     },
     "alerts": {
       "title": "Promemoria",
@@ -3355,7 +3356,8 @@
       "task_due": "Attività in scadenza",
       "event_exported": "Evento esportato",
       "title_copied": "Titolo copiato",
-      "link_copied": "Link copiato"
+      "link_copied": "Link copiato",
+      "single_occurrence_blocked": "Al momento non è possibile modificare singole occorrenze di serie di un giorno intero (bug del server di posta)."
     },
     "status": {
       "loading_calendars": "Caricamento calendari...",

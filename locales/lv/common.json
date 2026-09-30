@@ -3242,7 +3242,8 @@
       "delete": "Dzēst",
       "rsvp_title": "Atbildēt uz atkārtotu pasākumu",
       "rsvp_description": "Šis ir atkārtots pasākums. Uz kurām instancēm attiecas jūsu atbilde?",
-      "respond": "Atbildēt"
+      "respond": "Atbildēt",
+      "single_occurrence_blocked": "Pasta servera kļūdas dēļ pašlaik nevar mainīt atsevišķus visas dienas sērijas gadījumus. Atsevišķa gadījuma dzēšana joprojām darbojas."
     },
     "alerts": {
       "title": "Atgādinājums",
@@ -3354,7 +3355,8 @@
       "task_due": "Uzdevuma termiņš",
       "event_exported": "Notikums eksportēts",
       "title_copied": "Nosaukums nokopēts",
-      "link_copied": "Saite nokopēta"
+      "link_copied": "Saite nokopēta",
+      "single_occurrence_blocked": "Pašlaik nevar mainīt atsevišķus visas dienas sērijas gadījumus (pasta servera kļūda)."
     },
     "status": {
       "loading_calendars": "Ielādē kalendārus...",

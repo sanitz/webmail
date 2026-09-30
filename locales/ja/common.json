@@ -3243,7 +3243,8 @@
       "delete": "削除",
       "rsvp_title": "繰り返しイベントに返信",
       "rsvp_description": "これは繰り返しイベントです。どのイベントに返信しますか？",
-      "respond": "返信"
+      "respond": "返信",
+      "single_occurrence_blocked": "メールサーバーの不具合のため、終日の繰り返し予定の単一の回は現在変更できません。単一の回の削除は引き続き可能です。"
     },
     "alerts": {
       "title": "リマインダー",
@@ -3355,7 +3356,8 @@
       "task_due": "タスクの期限です",
       "event_exported": "イベントをエクスポートしました",
       "title_copied": "タイトルをコピーしました",
-      "link_copied": "リンクをコピーしました"
+      "link_copied": "リンクをコピーしました",
+      "single_occurrence_blocked": "終日の繰り返し予定の単一の回は現在変更できません（メールサーバーの不具合）。"
     },
     "status": {
       "loading_calendars": "カレンダーを読み込み中...",

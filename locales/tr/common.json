@@ -3243,7 +3243,8 @@
       "delete": "Sil",
       "rsvp_title": "Yinelenen etkinliğe yanıt ver",
       "rsvp_description": "Bu yinelenen bir etkinlik. Yanıtınız hangi etkinlikler için geçerli?",
-      "respond": "Yanıtla"
+      "respond": "Yanıtla",
+      "single_occurrence_blocked": "Bir e-posta sunucusu hatası nedeniyle tüm gün serilerinin tek tek tekrarları şu anda değiştirilemiyor. Tek bir tekrarı silmek hâlâ mümkün."
     },
     "alerts": {
       "title": "Hatırlatıcı",
@@ -3381,7 +3382,8 @@
       "task_due": "Görev süresi doldu",
       "event_exported": "Etkinlik dışa aktarıldı",
       "title_copied": "Başlık kopyalandı",
-      "link_copied": "Bağlantı kopyalandı"
+      "link_copied": "Bağlantı kopyalandı",
+      "single_occurrence_blocked": "Tüm gün serilerinin tek tek tekrarları şu anda değiştirilemiyor (e-posta sunucusu hatası)."
     },
     "status": {
       "loading_calendars": "Takvimler yükleniyor...",

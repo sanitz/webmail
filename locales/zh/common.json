@@ -3243,7 +3243,8 @@
       "delete": "删除",
       "rsvp_title": "回复重复事件",
       "rsvp_description": "这是一个重复事件。您的回复适用于哪些事件？",
-      "respond": "回复"
+      "respond": "回复",
+      "single_occurrence_blocked": "由于邮件服务器存在错误，目前无法更改全天重复系列中的单次事件。删除单次事件仍然可用。"
     },
     "alerts": {
       "title": "提醒",
@@ -3355,7 +3356,8 @@
       "task_due": "任务到期",
       "event_exported": "日程已导出",
       "title_copied": "标题已复制",
-      "link_copied": "链接已复制"
+      "link_copied": "链接已复制",
+      "single_occurrence_blocked": "目前无法更改全天重复系列中的单次事件（邮件服务器错误）。"
     },
     "status": {
       "loading_calendars": "正在加载日历...",

@@ -3243,7 +3243,8 @@
       "delete": "刪除",
       "rsvp_title": "回覆重複活動",
       "rsvp_description": "這是重複活動。您的回覆適用於哪些活動？",
-      "respond": "回覆"
+      "respond": "回覆",
+      "single_occurrence_blocked": "由於郵件伺服器發生錯誤，目前無法變更全天重複系列中的單次事件。刪除單次事件仍然可以使用。"
     },
     "alerts": {
       "title": "提醒",
@@ -3381,7 +3382,8 @@
       "task_due": "任務到期",
       "event_exported": "活動已匯出",
       "title_copied": "標題已複製",
-      "link_copied": "連結已複製"
+      "link_copied": "連結已複製",
+      "single_occurrence_blocked": "目前無法變更全天重複系列中的單次事件（郵件伺服器錯誤）。"
     },
     "status": {
       "loading_calendars": "正在載入行事曆…",

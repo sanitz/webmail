@@ -3243,7 +3243,8 @@
       "delete": "Slet",
       "rsvp_title": "Svar på tilbagevendende begivenhed",
       "rsvp_description": "Dette er en tilbagevendende begivenhed. Hvilke begivenheder gælder dit svar for?",
-      "respond": "Svar"
+      "respond": "Svar",
+      "single_occurrence_blocked": "Enkelte forekomster af heldagsserier kan i øjeblikket ikke ændres på grund af en fejl i mailserveren. Det er stadig muligt at slette en enkelt forekomst."
     },
     "alerts": {
       "title": "Påmindelse",
@@ -3381,7 +3382,8 @@
       "task_due": "Opgave forfalder",
       "event_exported": "Begivenhed eksporteret",
       "title_copied": "Titel kopieret",
-      "link_copied": "Link kopieret"
+      "link_copied": "Link kopieret",
+      "single_occurrence_blocked": "Enkelte forekomster af heldagsserier kan i øjeblikket ikke ændres (fejl i mailserveren)."
     },
     "status": {
       "loading_calendars": "Indlæser kalendere...",
