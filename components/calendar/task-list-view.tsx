@@ -53,7 +53,8 @@ function getDueDateLabel(due: string, showWithoutTime: boolean, t: ReturnType<ty
     };
   }
 
-  const formatted = showWithoutTime
+  const isMidnight = due.endsWith("T00:00:00");
+  const formatted = (showWithoutTime || isMidnight)
     ? format(dueDate, "MMM d")
     : format(dueDate, timeFormat === "12h" ? "MMM d, h:mm a" : "MMM d, HH:mm");
 

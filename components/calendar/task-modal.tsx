@@ -66,8 +66,10 @@ export function TaskModal({
   const [title, setTitle] = useState(task?.title ?? "");
   const [description, setDescription] = useState(task?.description ?? "");
   const [dueDate, setDueDate] = useState(task?.due ? format(parseISO(task.due), "yyyy-MM-dd") : "");
-  const [dueTime, setDueTime] = useState(task?.due && !task.showWithoutTime ? format(parseISO(task.due), "HH:mm") : "");
-  const [showTime, setShowTime] = useState(task?.due ? !task.showWithoutTime : false);
+  const isMidnightNoTime = Boolean(task?.due && task.due.endsWith("T00:00:00"));
+  const hasExplicitTime = Boolean(task?.due && !task.showWithoutTime && !isMidnightNoTime);
+  const [dueTime, setDueTime] = useState(hasExplicitTime ? format(parseISO(task!.due!), "HH:mm") : "");
+  const [showTime, setShowTime] = useState(hasExplicitTime);
   const [priority, setPriority] = useState<PriorityLevel>(priorityToLevel(task?.priority ?? 0));
   const [progress, setProgress] = useState<CalendarTask["progress"]>(task?.progress ?? "needs-action");
   const [calendarId, setCalendarId] = useState(() => {
@@ -154,8 +156,14 @@ export function TaskModal({
           due = `${dueDate}T${dueTime}:00`;
           showWithoutTime = false;
         } else {
-          due = dueDate;
-          showWithoutTime = true;
+          const isRecurring = recurrence !== "none" || Boolean(task?.recurrenceRules?.length);
+          if (isRecurring) {
+            due = `${dueDate}T00:00:00`;
+            showWithoutTime = false;
+          } else {
+            due = dueDate;
+            showWithoutTime = true;
+          }
         }
       }
 
