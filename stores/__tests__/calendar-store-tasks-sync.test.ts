@@ -21,10 +21,10 @@ describe('calendar-store <-> settings-store taskCalendarIds sync (#1208)', () =>
 
     const mockClient = {
       getParticipantIdentities: vi.fn().mockResolvedValue([]),
-      getAllCalendars: vi.fn().mockResolvedValue([
+      getAllCalendarsWithFailures: vi.fn().mockResolvedValue({ calendars: [
         { id: 'cal-synced-tasks', name: 'NurAufgaben', isTasksOnly: false },
         { id: 'cal-events', name: 'Termine', isTasksOnly: false },
-      ] as Calendar[]),
+      ] as Calendar[], failedAccountIds: [] }),
     } as unknown as IJMAPClient;
 
     await useCalendarStore.getState().fetchCalendars(mockClient);
@@ -71,9 +71,9 @@ describe('calendar-store <-> settings-store taskCalendarIds sync (#1208)', () =>
 
     const mockClient = {
       getParticipantIdentities: vi.fn().mockResolvedValue([]),
-      getAllCalendars: vi.fn().mockResolvedValue([
+      getAllCalendarsWithFailures: vi.fn().mockResolvedValue({ calendars: [
         { id: 'cal-actually-mixed', name: 'NurAufgaben', isTasksOnly: false, isTasksOnlyConfirmed: true },
-      ] as Calendar[]),
+      ] as Calendar[], failedAccountIds: [] }),
     } as unknown as IJMAPClient;
 
     await useCalendarStore.getState().fetchCalendars(mockClient);
@@ -96,10 +96,10 @@ describe('calendar-store <-> settings-store taskCalendarIds sync (#1208)', () =>
 
     const mockClient = {
       getParticipantIdentities: vi.fn().mockResolvedValue([]),
-      getAllCalendars: vi.fn().mockResolvedValue([
+      getAllCalendarsWithFailures: vi.fn().mockResolvedValue({ calendars: [
         { id: 'cal-events', name: 'Termine', isTasksOnly: false },
         { id: 'cal-new-tasks', name: 'NurAufgaben', isTasksOnly: true, isTasksOnlyConfirmed: true },
-      ] as Calendar[]),
+      ] as Calendar[], failedAccountIds: [] }),
     } as unknown as IJMAPClient;
 
     await useCalendarStore.getState().fetchCalendars(mockClient);
@@ -126,10 +126,10 @@ describe('calendar-store <-> settings-store taskCalendarIds sync (#1208)', () =>
 
     const mockClient = {
       getParticipantIdentities: vi.fn().mockResolvedValue([]),
-      getAllCalendars: vi.fn().mockResolvedValue([
+      getAllCalendarsWithFailures: vi.fn().mockResolvedValue({ calendars: [
         { id: 'cal-events', name: 'Termine', isTasksOnly: false },
         { id: 'cal-old-tasks', name: 'Alte Aufgaben', isTasksOnly: true, isTasksOnlyConfirmed: true },
-      ] as Calendar[]),
+      ] as Calendar[], failedAccountIds: [] }),
     } as unknown as IJMAPClient;
 
     await useCalendarStore.getState().fetchCalendars(mockClient);
