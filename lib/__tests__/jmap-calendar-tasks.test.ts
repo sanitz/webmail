@@ -251,6 +251,7 @@ describe('JMAPClient task operations (#958)', () => {
       firstDayOfWeek: 'mo',
     });
   });
+
 });
 
 describe('JMAPClient tasks in shared calendars (#1204)', () => {

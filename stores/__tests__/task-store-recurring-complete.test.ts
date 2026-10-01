@@ -4,6 +4,7 @@ import type { CalendarTask } from '@/lib/jmap/types';
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
 import { createRecurrenceRule } from '@/lib/recurrence-rule';
 import { AllDaySeriesOverrideBlockedError } from '@/lib/all-day-series-block';
+import { groupTasksByDueDay } from '@/lib/calendar-tasks';
 
 function makeTask(overrides: Partial<CalendarTask> = {}): CalendarTask {
   return {
@@ -68,12 +69,12 @@ describe('task-store recurring toggleTaskComplete', () => {
     const [calledId, calledUpdates] = (mockClient.updateCalendarTask as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(calledId).toBe('t-walk');
     expect(calledUpdates).toMatchObject({
-      due: '2026-09-21',
+      due: '2026-09-21T00:00:00',
       progress: 'needs-action',
     });
 
     const updatedTask = useTaskStore.getState().tasks.find((t) => t.id === 't-walk');
-    expect(updatedTask?.due).toBe('2026-09-21');
+    expect(updatedTask?.due).toBe('2026-09-21T00:00:00');
     expect(updatedTask?.progress).toBe('needs-action');
   });
 
@@ -96,6 +97,26 @@ describe('task-store recurring toggleTaskComplete', () => {
       due: '2026-09-28T09:30:00',
       progress: 'needs-action',
     });
+  });
+
+  it('uses up one occurrence of a counted series per completion, so the series still ends (tiger-iac#1323)', async () => {
+    const task = makeTask({
+      id: 't-count',
+      due: '2026-09-20T00:00:00',
+      recurrenceRules: [createRecurrenceRule('daily', { count: 3 })],
+    });
+    useTaskStore.setState({ tasks: [task] });
+
+    for (let i = 0; i < 3; i++) {
+      const current = useTaskStore.getState().tasks[0];
+      await useTaskStore.getState().toggleTaskComplete(mockClient as IJMAPClient, current);
+    }
+
+    const calls = (mockClient.updateCalendarTask as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[1]);
+    expect(calls[0]).toMatchObject({ due: '2026-09-21T00:00:00', recurrenceRules: [expect.objectContaining({ count: 2 })] });
+    expect(calls[1]).toMatchObject({ due: '2026-09-22T00:00:00', recurrenceRules: [expect.objectContaining({ count: 1 })] });
+    expect(calls[2]).toEqual({ progress: 'completed' });
+    expect(useTaskStore.getState().tasks[0]).toMatchObject({ due: '2026-09-22T00:00:00', progress: 'completed' });
   });
 
   it('sets progress to completed when the final recurrence occurrence is completed', async () => {
@@ -232,8 +253,28 @@ describe('task-store recurring toggleTaskComplete', () => {
 
     await useTaskStore.getState().toggleTaskComplete(mockClient as IJMAPClient, current);
 
-    expect(mockClient.updateCalendarTask).toHaveBeenCalledWith('t-bin', { progress: 'needs-action', due: '2026-09-27' });
-    expect(useTaskStore.getState().tasks[0]).toMatchObject({ due: '2026-09-27', showWithoutTime: true });
+    expect(mockClient.updateCalendarTask).toHaveBeenCalledWith('t-bin', { progress: 'needs-action', due: '2026-09-27T00:00:00' });
+    expect(useTaskStore.getState().tasks[0]).toMatchObject({ due: '2026-09-27T00:00:00', showWithoutTime: true });
   });
 });
 
+
+describe('task-store updateTask with override patch paths (tiger-iac#1323)', () => {
+  it('removes an override patched to null, so the reloaded view does not break', async () => {
+    const master = makeTask({
+      id: 't-split',
+      due: '2026-10-07T09:00:00',
+      showWithoutTime: false,
+      recurrenceRules: [createRecurrenceRule('weekly')],
+      recurrenceOverrides: { '2026-10-21T09:00:00': { progress: 'completed' }, '2026-10-07T09:00:00': { title: 'early' } },
+    });
+    useTaskStore.setState({ tasks: [master] });
+    const client = { updateCalendarTask: vi.fn().mockResolvedValue(undefined) } as Partial<IJMAPClient>;
+
+    await useTaskStore.getState().updateTask(client as IJMAPClient, 't-split', { 'recurrenceOverrides/2026-10-21T09:00:00': null } as never);
+
+    const task = useTaskStore.getState().tasks[0];
+    expect(task.recurrenceOverrides).toEqual({ '2026-10-07T09:00:00': { title: 'early' } });
+    expect(() => groupTasksByDueDay([task], { start: new Date('2026-10-01'), end: new Date('2026-10-31') })).not.toThrow();
+  });
+});

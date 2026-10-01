@@ -9,6 +9,8 @@ import { applyPatchObject, patchedProperties } from '@/lib/jmap/patch-object';
 import { getNextRecurrenceDate } from '@/lib/recurrence-expansion';
 import { findTaskOverride, occurrenceRecurrenceId, overridePatch } from '@/lib/calendar-tasks';
 
+type TaskOverride = NonNullable<CalendarTask['recurrenceOverrides']>[string];
+
 export type TaskViewFilter = 'all' | 'pending' | 'completed' | 'overdue';
 
 /**
@@ -196,9 +198,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         : null;
 
       if (nextDate) {
-        const newDue = task.due
-          ? (task.showWithoutTime ? format(nextDate, 'yyyy-MM-dd') : format(nextDate, "yyyy-MM-dd'T'HH:mm:ss"))
-          : null;
+        // LocalDateTime also for all-day tasks: Stalwart drops a bare date from iCal (tiger-iac#1323).
+        const dateFormat = task.showWithoutTime ? "yyyy-MM-dd'T'00:00:00" : "yyyy-MM-dd'T'HH:mm:ss";
+        const newDue = task.due ? format(nextDate, dateFormat) : null;
         let newStart = task.start;
         if (task.start && task.due) {
           const oldDue = parseISO(task.due);
@@ -206,13 +208,16 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           if (!isNaN(oldDue.getTime()) && !isNaN(oldStart.getTime())) {
             const shiftMs = nextDate.getTime() - oldDue.getTime();
             const shiftedStart = new Date(oldStart.getTime() + shiftMs);
-            newStart = task.showWithoutTime ? format(shiftedStart, 'yyyy-MM-dd') : format(shiftedStart, "yyyy-MM-dd'T'HH:mm:ss");
+            newStart = format(shiftedStart, dateFormat);
           }
         }
+        // Moving the anchor restarts the count, so the completed occurrence is used up here.
+        const [rule, ...otherRules] = task.recurrenceRules;
         updates = {
           progress: 'needs-action',
           ...(newDue ? { due: newDue } : {}),
           ...(newStart ? { start: newStart } : {}),
+          ...(rule.count != null ? { recurrenceRules: [{ ...rule, count: rule.count - 1 }, ...otherRules] } : {}),
         };
       } else {
         updates = { progress: 'completed' };
