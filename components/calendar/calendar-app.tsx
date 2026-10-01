@@ -117,7 +117,7 @@ import { useConfig } from "@/hooks/use-config";
 import { CalendarPrint, type CalendarPrintContent } from "@/components/calendar/calendar-print";
 import { usePrintListener, usePrinting } from "@/components/print/print-root";
 import { requestPrint, usePrintStore } from "@/stores/print-store";
-import { isRecurringTask, executeTaskScopeAction, type PendingTaskScopeAction } from "@/lib/calendar-task-scope";
+import { isRecurringTask, executeTaskScopeAction, taskActionErrorKey, type PendingTaskScopeAction } from "@/lib/calendar-task-scope";
 import { AllDaySeriesOverrideBlockedError, isSingleOccurrenceChangeBlocked } from "@/lib/all-day-series-block";
 
 // `fromEditor`: asked on the way out of the event editor, which stays open
@@ -765,7 +765,8 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
         toast.error(t("notifications.single_occurrence_blocked"));
         return;
       }
-      toast.error(describeError(err, t("notifications.task_update_error")));
+      debug.error("Toggling task completion failed:", err);
+      toast.error(t(taskActionErrorKey(err)));
     });
   }, [client, toggleTaskCompleteFn, describeError, t]);
 

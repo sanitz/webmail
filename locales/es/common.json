@@ -4498,6 +4498,7 @@
       "event_duplicated": "Evento duplicado",
       "event_error": "Error al guardar el evento",
       "task_due": "Tarea vencida",
+      "task_error": "No se pudo guardar la tarea",
       "event_exported": "Evento exportado",
       "title_copied": "Título copiado",
       "link_copied": "Enlace copiado",

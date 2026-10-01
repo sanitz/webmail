@@ -4524,6 +4524,7 @@
       "event_duplicated": "Etkinlik çoğaltıldı",
       "event_error": "Etkinlik kaydedilemedi",
       "task_due": "Görev süresi doldu",
+      "task_error": "Görev kaydedilemedi",
       "event_exported": "Etkinlik dışa aktarıldı",
       "title_copied": "Başlık kopyalandı",
       "link_copied": "Bağlantı kopyalandı",

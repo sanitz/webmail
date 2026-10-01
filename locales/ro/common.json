@@ -4524,6 +4524,7 @@
       "event_duplicated": "Eveniment duplicat",
       "event_error": "Nu s-a putut salva evenimentul",
       "task_due": "Termen de finalizare a sarcinii",
+      "task_error": "Sarcina nu a putut fi salvată",
       "event_exported": "Eveniment exportat",
       "title_copied": "Titlu copiat",
       "link_copied": "Link copiat",

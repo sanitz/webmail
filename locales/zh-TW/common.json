@@ -4524,6 +4524,7 @@
       "event_duplicated": "已建立活動副本",
       "event_error": "無法儲存活動",
       "task_due": "任務到期",
+      "task_error": "無法儲存工作",
       "event_exported": "活動已匯出",
       "title_copied": "標題已複製",
       "link_copied": "連結已複製",

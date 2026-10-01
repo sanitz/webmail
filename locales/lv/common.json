@@ -4497,6 +4497,7 @@
       "event_duplicated": "Pasākums dublēts",
       "event_error": "Neizdevās saglabāt pasākumu",
       "task_due": "Uzdevuma termiņš",
+      "task_error": "Uzdevumu neizdevās saglabāt",
       "event_exported": "Notikums eksportēts",
       "title_copied": "Nosaukums nokopēts",
       "link_copied": "Saite nokopēta",

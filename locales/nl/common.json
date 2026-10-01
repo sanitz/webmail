@@ -4498,6 +4498,7 @@
       "event_duplicated": "Evenement gedupliceerd",
       "event_error": "Evenement opslaan mislukt",
       "task_due": "Taak vervalt",
+      "task_error": "Taak kon niet worden opgeslagen",
       "event_exported": "Afspraak geëxporteerd",
       "title_copied": "Titel gekopieerd",
       "link_copied": "Link gekopieerd",

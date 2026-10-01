@@ -4498,6 +4498,7 @@
       "event_duplicated": "予定を複製しました",
       "event_error": "予定の保存に失敗しました",
       "task_due": "タスクの期限です",
+      "task_error": "タスクを保存できませんでした",
       "event_exported": "イベントをエクスポートしました",
       "title_copied": "タイトルをコピーしました",
       "link_copied": "リンクをコピーしました",

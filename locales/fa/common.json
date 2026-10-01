@@ -4524,6 +4524,7 @@
       "event_duplicated": "رویداد کپی شد",
       "event_error": "ذخیره رویداد ناموفق بود",
       "task_due": "موعد وظیفه",
+      "task_error": "ذخیره وظیفه ممکن نشد",
       "event_exported": "رویداد خروجی گرفته شد",
       "title_copied": "عنوان کپی شد",
       "link_copied": "لینک کپی شد",
