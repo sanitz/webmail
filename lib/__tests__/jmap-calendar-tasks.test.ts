@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JMAPClient } from '../jmap/client';
 import type { CalendarTask } from '../jmap/types';
+import wire from '../__fixtures__/stalwart-task-due-wire.json';
 
 function makeSession() {
   return {
@@ -149,6 +150,34 @@ describe('JMAPClient task operations (#958)', () => {
       interval: 1,
       firstDayOfWeek: 'mo',
     });
+  });
+
+  // Stalwart keeps a date-only due in JMAP but drops DUE from the stored
+  // iCalendar; only a LocalDateTime is written as DUE;VALUE=DATE (tiger-iac#1323).
+  const isDateOnly = (due: string) => !due.includes('T');
+  const keepsDue = (due: string) => {
+    const sameForm = wire.allDayTaskDue.filter((row) => row.write.patch != null && isDateOnly(row.write.patch.due) === isDateOnly(due));
+    return sameForm.length > 0 && sameForm.every((row) => row.icalDue != null);
+  };
+
+  it.each([
+    ['updateCalendarTask', async () => client.updateCalendarTask('task-1', { due: '2026-10-14' }), 'update', 'task-1'],
+    ['createCalendarTask', async () => client.createCalendarTask({ title: 'T', due: '2026-10-07', showWithoutTime: true }), 'create', 'new-task'],
+  ] as const)('%s sends a date-only due as a LocalDateTime that keeps DUE in iCal (tiger-iac#1323)', async (_name, write, kind, key) => {
+    await write();
+
+    const setCall = sentCalls.find((c) => c.method === 'CalendarEvent/set');
+    const payload = (setCall?.args[kind] as Record<string, Record<string, unknown>>)[key];
+    expect(payload.due).toMatch(/T00:00:00$/);
+    expect(keepsDue(payload.due as string)).toBe(true);
+  });
+
+  it('completes a date-only task start as well and leaves timed values untouched (tiger-iac#1323)', async () => {
+    await client.updateCalendarTask('task-1', { start: '2026-10-01', due: '2026-10-14T09:30:00' });
+
+    const setCall = sentCalls.find((c) => c.method === 'CalendarEvent/set');
+    const payload = (setCall?.args.update as Record<string, Record<string, unknown>>)['task-1'];
+    expect(payload).toMatchObject({ start: '2026-10-01T00:00:00', due: '2026-10-14T09:30:00' });
   });
 });
 

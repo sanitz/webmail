@@ -128,13 +128,22 @@ export function normalizeCalendarEventLike<T extends Partial<CalendarEvent>>(eve
   } as T;
 }
 
+/**
+ * JSCalendar dates are LocalDateTimes; Stalwart silently drops a date-only
+ * start and a date-only task due from the stored iCalendar (tiger-iac#1313,
+ * tiger-iac#1323). Completes a bare date to midnight, leaves anything else as is.
+ */
+export function completeDateOnly(value: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
+}
+
 export function sanitizeOutgoingCalendarEventData<T extends Partial<CalendarEvent>>(event: T): T {
   const normalized = normalizeCalendarEventLike(event);
   if (!normalized.showWithoutTime) {
     // A date-only start is never a valid LocalDateTime; Stalwart silently
     // drops it (a month-view drag patches only { start }, tiger-iac#1313).
-    if (typeof normalized.start === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(normalized.start)) {
-      return { ...normalized, start: `${normalized.start}T00:00:00` } as T;
+    if (typeof normalized.start === 'string' && normalized.start !== completeDateOnly(normalized.start)) {
+      return { ...normalized, start: completeDateOnly(normalized.start) } as T;
     }
     return normalized;
   }

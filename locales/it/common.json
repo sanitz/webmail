@@ -3354,6 +3354,7 @@
       "event_duplicated": "Evento duplicato",
       "event_error": "Salvataggio dell'evento non riuscito",
       "task_due": "Attività in scadenza",
+      "task_error": "Impossibile salvare l'attività",
       "event_exported": "Evento esportato",
       "title_copied": "Titolo copiato",
       "link_copied": "Link copiato",

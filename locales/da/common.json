@@ -3380,6 +3380,7 @@
       "event_duplicated": "Begivenhed duplikeret",
       "event_error": "Kunne ikke gemme begivenhed",
       "task_due": "Opgave forfalder",
+      "task_error": "Opgaven kunne ikke gemmes",
       "event_exported": "Begivenhed eksporteret",
       "title_copied": "Titel kopieret",
       "link_copied": "Link kopieret",

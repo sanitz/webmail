@@ -3272,6 +3272,7 @@
       "event_duplicated": "האירוע שוכפל",
       "event_error": "שמירת האירוע נכשלה",
       "task_due": "משימה בשל",
+      "task_error": "לא ניתן היה לשמור את המשימה",
       "event_exported": "אירוע ייצא",
       "title_copied": "כותרת הועתקה",
       "link_copied": "קישור הועתק",

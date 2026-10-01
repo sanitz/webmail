@@ -3380,6 +3380,7 @@
       "event_duplicated": "تم تكرار الحدث",
       "event_error": "فشل حفظ الحدث",
       "task_due": "موعد استحقاق المهمة",
+      "task_error": "تعذّر حفظ المهمة",
       "event_exported": "تم تصدير الحدث",
       "title_copied": "تم نسخ العنوان",
       "link_copied": "تم نسخ الرابط",

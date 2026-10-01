@@ -3354,6 +3354,7 @@
       "event_duplicated": "活动已复制",
       "event_error": "无法保存活动",
       "task_due": "任务到期",
+      "task_error": "无法保存任务",
       "event_exported": "日程已导出",
       "title_copied": "标题已复制",
       "link_copied": "链接已复制",

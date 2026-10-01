@@ -7,7 +7,7 @@ import { batched, itemsPerRequest } from "./request-limits";
 import { keywordPointer } from "./patch-pointer";
 import { FirstTouchGate } from "./first-touch-gate";
 import { debug } from "@/lib/debug";
-import { normalizeCalendarEventLike, normalizeStalwartPropertyNames } from "@/lib/calendar-event-normalization";
+import { normalizeCalendarEventLike, normalizeStalwartPropertyNames, completeDateOnly } from "@/lib/calendar-event-normalization";
 import { SYNTHETIC_ID_PROBE, RECURRENCE_BASE_PROPERTIES, hydrateRecurrenceInstances, isServerRecurrenceInstance } from "@/lib/recurrence-instances";
 import { isTaskLikeObject, type ScannedCalendarObject } from "@/lib/calendar-component-detection";
 import { DEFAULT_CALENDAR_COMPONENTS, mkCalendarCollection, newCalendarCollectionName, fetchCalendarCollectionComponents } from "@/lib/webdav/calendar-collection";
@@ -568,6 +568,14 @@ function getUserTimeZone(): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/** Task due/start as LocalDateTimes; Stalwart keeps a bare date only in JMAP, not in iCal (tiger-iac#1323). */
+function completeDateOnlyTaskDates<T extends Partial<CalendarTask>>(task: T): T {
+  const result = { ...task };
+  if (typeof result.due === 'string') result.due = completeDateOnly(result.due);
+  if (typeof result.start === 'string') result.start = completeDateOnly(result.start);
+  return result;
 }
 
 /**
@@ -7853,7 +7861,7 @@ export class JMAPClient implements IJMAPClient {
       accountId = resolved.accountId;
       taskData.calendarIds = resolved.calendarIds;
     }
-    const cleanTask = { ...taskData, '@type': 'Task' };
+    const cleanTask = { ...completeDateOnlyTaskDates(taskData), '@type': 'Task' };
     cleanRecurrenceRules(cleanTask as unknown as Record<string, unknown>);
 
     debug.group('CalendarTask/create', 'tasks');
@@ -7937,10 +7945,10 @@ export class JMAPClient implements IJMAPClient {
    */
   async updateCalendarTask(taskId: string, updates: Partial<CalendarTask>, targetAccountId?: string): Promise<string> {
     const source = targetAccountId ? { accountId: targetAccountId, id: taskId } : this.splitCalendarObjectId(taskId);
-    let patch = updates;
-    if (!targetAccountId && updates.calendarIds) {
-      const dest = this.resolveTaskCalendarIds(updates.calendarIds);
-      patch = { ...updates, calendarIds: dest.calendarIds };
+    let patch = completeDateOnlyTaskDates(updates);
+    if (!targetAccountId && patch.calendarIds) {
+      const dest = this.resolveTaskCalendarIds(patch.calendarIds);
+      patch = { ...patch, calendarIds: dest.calendarIds };
       if (dest.accountId !== source.accountId) {
         return this.moveCalendarTaskToAccount(source, dest.accountId, patch);
       }
