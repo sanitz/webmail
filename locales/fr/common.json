@@ -3486,6 +3486,7 @@
       "event_duplicated": "Événement dupliqué",
       "event_error": "Échec de l'enregistrement de l'événement",
       "task_due": "Tâche à échéance",
+      "task_error": "Impossible d'enregistrer la tâche",
       "event_exported": "Événement exporté",
       "title_copied": "Titre copié",
       "link_copied": "Lien copié",

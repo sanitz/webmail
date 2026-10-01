@@ -3486,6 +3486,7 @@
       "event_duplicated": "Hendelsen er duplisert",
       "event_error": "Kunne ikke lagre hendelsen",
       "task_due": "Oppgaven forfaller",
+      "task_error": "Oppgaven kunne ikke lagres",
       "event_exported": "Hendelsen er eksportert",
       "title_copied": "Tittelen er kopiert",
       "link_copied": "Lenken er kopiert",

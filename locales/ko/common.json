@@ -3460,6 +3460,7 @@
       "event_duplicated": "일정이 복제되었어요",
       "event_error": "일정을 저장하지 못했어요",
       "task_due": "할 일 기한이 다가와요",
+      "task_error": "작업을 저장할 수 없습니다",
       "event_exported": "이벤트 내보내기 완료",
       "title_copied": "제목이 복사되었습니다",
       "link_copied": "링크가 복사되었습니다",

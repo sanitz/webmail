@@ -3460,6 +3460,7 @@
       "event_duplicated": "Wydarzenie zduplikowano",
       "event_error": "Nie udało się zapisać wydarzenia",
       "task_due": "Termin zadania",
+      "task_error": "Nie udało się zapisać zadania",
       "event_exported": "Wydarzenie wyeksportowane",
       "title_copied": "Tytuł skopiowany",
       "link_copied": "Link skopiowany",

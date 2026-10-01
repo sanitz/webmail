@@ -3486,6 +3486,7 @@
       "event_duplicated": "Udalosť bola duplikovaná",
       "event_error": "Uloženie udalosti zlyhalo",
       "task_due": "Termín úlohy",
+      "task_error": "Úlohu sa nepodarilo uložiť",
       "event_exported": "Udalosť exportovaná",
       "title_copied": "Názov skopírovaný",
       "link_copied": "Odkaz skopírovaný",

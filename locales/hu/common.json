@@ -3486,6 +3486,7 @@
       "event_duplicated": "Esemény duplikálva",
       "event_error": "Nem sikerült menteni az eseményt",
       "task_due": "Feladat határidős",
+      "task_error": "A feladatot nem sikerült menteni",
       "event_exported": "Esemény exportálva",
       "title_copied": "Cím másolva",
       "link_copied": "Link másolva",

@@ -3486,6 +3486,7 @@
       "event_duplicated": "Event duplicated",
       "event_error": "Failed to save event",
       "task_due": "Task due",
+      "task_error": "Task could not be saved",
       "event_exported": "Event exported",
       "title_copied": "Title copied",
       "link_copied": "Link copied",

@@ -100,7 +100,7 @@ import { MvTopBar } from "@/components/layout/mv-top-bar";
 import { useMountainViewShell } from "@/hooks/use-mountain-view-shell";
 import { calendarHooks } from "@/lib/plugin-hooks";
 import { eventToView } from "@/lib/plugin-projection";
-import { isRecurringTask, executeTaskScopeAction, type PendingTaskScopeAction } from "@/lib/calendar-task-scope";
+import { isRecurringTask, executeTaskScopeAction, taskActionErrorKey, type PendingTaskScopeAction } from "@/lib/calendar-task-scope";
 import { AllDaySeriesOverrideBlockedError, isSingleOccurrenceChangeBlocked } from "@/lib/all-day-series-block";
 
 type PendingScopeAction =
@@ -676,8 +676,8 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
       return;
     }
     toggleTaskCompleteFn(client, task).catch((err) => {
-      if (!(err instanceof AllDaySeriesOverrideBlockedError)) throw err;
-      toast.error(t("notifications.single_occurrence_blocked"));
+      debug.error("Toggling task completion failed:", err);
+      toast.error(t(taskActionErrorKey(err)));
     });
   }, [client, toggleTaskCompleteFn, t]);
 

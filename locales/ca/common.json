@@ -3486,6 +3486,7 @@
       "event_duplicated": "Esdeveniment duplicat",
       "event_error": "No s'ha pogut desar l'esdeveniment",
       "task_due": "Tasca pendent",
+      "task_error": "No s'ha pogut desar la tasca",
       "event_exported": "Esdeveniment exportat",
       "title_copied": "Títol copiat",
       "link_copied": "Enllaç copiat",

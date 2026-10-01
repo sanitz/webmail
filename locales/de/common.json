@@ -3460,6 +3460,7 @@
       "event_duplicated": "Termin dupliziert",
       "event_error": "Termin konnte nicht gespeichert werden",
       "task_due": "Aufgabe fällig",
+      "task_error": "Aufgabe konnte nicht gespeichert werden",
       "event_exported": "Termin exportiert",
       "title_copied": "Titel kopiert",
       "link_copied": "Link kopiert",
