@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useDisplayDateFormatter } from "@/hooks/use-display-date-formatter";
 import { format, isSameDay, eachDayOfInterval, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
-import { Check } from "@/components/icons";
+import { CalendarTaskChip } from "./task-chip";
 import { EventCard } from "./event-card";
 import { QuickEventInput } from "./quick-event-input";
 import { AllHoursToggle, HiddenEventsIndicator } from "./display-hours-controls";
@@ -97,6 +97,8 @@ export function CalendarDayView({
     return root.clientWidth - gutterWidth;
   }, [gutterWidth]);
   const [colWidth, setColWidth] = useState(FALLBACK_COL_WIDTH);
+  // First day in view, reported by the scroll handler below (#1324)
+  const [visibleDayKey, setVisibleDayKey] = useState<string | null>(null);
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -182,13 +184,39 @@ export function CalendarDayView({
     return map;
   }, [days, eventsByDay, hours]);
 
-  const hasAllDayArea = useMemo(
-    () => days.some((day) => {
-      const key = format(day, "yyyy-MM-dd");
-      return (eventsByDay.get(key)?.allDay.length ?? 0) > 0 || (tasksByDay.get(key)?.length ?? 0) > 0;
-    }),
-    [days, eventsByDay, tasksByDay],
-  );
+  // The strip holds many days (#759), but the all-day area is sized from the
+  // column in view: a crowded day far away must not add empty rows or an
+  // expand toggle here (#1324, same fix as #1293 for the week view).
+  const visibleStartIndex = useMemo(() => {
+    const tracked = visibleDayKey ? days.findIndex((d) => dayKey(d) === visibleDayKey) : -1;
+    if (tracked >= 0) return tracked;
+    return Math.max(0, Math.min(days.length - 1, differenceInCalendarDays(focus.date, rangeStart)));
+  }, [visibleDayKey, days, focus.date, rangeStart]);
+
+  // In day view only one column is visible at a time
+  const visibleColumns = 1;
+
+  // Max combined rows (all-day events + tasks) across the visible day
+  const maxContentRows = useMemo(() => {
+    let max = 0;
+    const end = Math.min(days.length, visibleStartIndex + visibleColumns);
+    for (let i = visibleStartIndex; i < end; i++) {
+      const key = format(days[i], "yyyy-MM-dd");
+      const allDayCount = eventsByDay.get(key)?.allDay.length ?? 0;
+      const taskCount = tasksByDay.get(key)?.length ?? 0;
+      const total = allDayCount + taskCount;
+      if (total > max) max = total;
+    }
+    return max;
+  }, [days, eventsByDay, tasksByDay, visibleStartIndex, visibleColumns]);
+
+  const hasAllDayArea = maxContentRows > 0;
+
+  const DEFAULT_ALL_DAY_MAX_ROWS = 3;
+  const [isAllDayExpanded, setIsAllDayExpanded] = useState(false);
+  const isExpandable = maxContentRows > DEFAULT_ALL_DAY_MAX_ROWS;
+  const visibleRows = isAllDayExpanded ? maxContentRows : Math.min(DEFAULT_ALL_DAY_MAX_ROWS, maxContentRows);
+  const allDayHeight = Math.max(28, visibleRows * 24 + 4);
 
   const scrollToFocus = useCallback(() => {
     const root = rootRef.current;
@@ -240,6 +268,7 @@ export function CalendarDayView({
       const key = dayKey(day);
       if (key === visibleKeyRef.current) return;
       visibleKeyRef.current = key;
+      setVisibleDayKey(key);
       onVisibleDateChange?.(day);
     });
   }, [colWidth, colCount, days, onVisibleDateChange]);
@@ -304,123 +333,153 @@ export function CalendarDayView({
         <div ref={startSentinelRef} data-testid="day-start-sentinel" className="absolute inset-y-0 start-0 w-px pointer-events-none" />
         <div ref={endSentinelRef} data-testid="day-end-sentinel" className="absolute inset-y-0 end-0 w-px pointer-events-none" />
 
-        <div className="sticky top-0 z-50 flex border-b border-border bg-background">
-          <div className={cn(gutterClass, "flex items-end justify-center pb-1")}>
-            {canToggleHours && (
-              <AllHoursToggle
-                showAllHours={showAllHours}
-                configured={configuredHours}
-                timeFormat={timeFormat}
-                onToggle={toggleAllHours}
-              />
-            )}
-          </div>
-          <div className="grid" style={columnsStyle}>
-            {days.map((day) => {
-              const key = format(day, "yyyy-MM-dd");
-              const today = isDisplayToday(day);
-              const allDayEvents = eventsByDay.get(key)?.allDay ?? [];
-              const dayTasks = tasksByDay.get(key) ?? [];
-              return (
-                <div key={key} data-day={key} className="min-w-0 border-e border-border last:border-e-0">
-                  <div
-                    className={cn("flex flex-col items-start gap-0.5 px-3 pt-2 pb-1.5", isMobile && "px-2")}
-                    role="columnheader"
-                    aria-label={intlFormatter.dateTime(day, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
-                  >
-                    <div className={cn(
-                      "w-10 text-center text-[11px] font-medium uppercase tracking-wide",
-                      today ? "text-primary" : "text-muted-foreground",
-                    )}>
-                      {intlFormatter.dateTime(day, { weekday: "short" })}
-                    </div>
+        <div className="sticky top-0 z-50 bg-background">
+          <div className="flex border-b border-border">
+            <div className={cn(gutterClass, "flex items-end justify-center pb-1")}>
+              {canToggleHours && (
+                <AllHoursToggle
+                  showAllHours={showAllHours}
+                  configured={configuredHours}
+                  timeFormat={timeFormat}
+                  onToggle={toggleAllHours}
+                />
+              )}
+            </div>
+            <div className="grid" style={columnsStyle}>
+              {days.map((day) => {
+                const key = format(day, "yyyy-MM-dd");
+                const today = isDisplayToday(day);
+                return (
+                  <div key={key} data-day={key} className="min-w-0 border-e border-border last:border-e-0">
                     <div
-                      aria-current={today ? "date" : undefined}
-                      className={cn(
-                        "inline-flex items-center justify-center w-10 h-10 rounded-full text-xl",
-                        today ? "bg-primary text-primary-foreground font-semibold" : "text-foreground",
-                      )}
+                      className={cn("flex flex-col items-start gap-0.5 px-3 pt-2 pb-1.5", isMobile && "px-2")}
+                      role="columnheader"
+                      aria-label={intlFormatter.dateTime(day, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
                     >
-                      {format(day, "d")}
+                      <div className={cn(
+                        "w-10 text-center text-[11px] font-medium uppercase tracking-wide",
+                        today ? "text-primary" : "text-muted-foreground",
+                      )}>
+                        {intlFormatter.dateTime(day, { weekday: "short" })}
+                      </div>
+                      <div
+                        aria-current={today ? "date" : undefined}
+                        className={cn(
+                          "inline-flex items-center justify-center w-10 h-10 rounded-full text-xl",
+                          today ? "bg-primary text-primary-foreground font-semibold" : "text-foreground",
+                        )}
+                      >
+                        {format(day, "d")}
+                      </div>
                     </div>
                     <PluginDayLabel surface="calendar-day-header" date={key} className="w-full" />
                   </div>
-
-                  {hasAllDayArea && (
-                    <div
-                      className="px-4 py-2 border-t border-border"
-                      onContextMenu={onContextMenuEmpty ? (e) => {
-                        if ((e.target as HTMLElement).closest("[data-calendar-event],button")) return;
-                        onContextMenuEmpty(e, day, undefined, true);
-                      } : undefined}
-                    >
-                      {allDayEvents.length > 0 && (
-                        <>
-                          <div className="text-[10px] text-muted-foreground mb-1">{t("events.all_day")}</div>
-                          <div className="space-y-1">
-                            {allDayEvents.map((ev) => {
-                              const calId = getPrimaryCalendarId(ev);
-                              return (
-                                <EventCard
-                                  key={ev.id}
-                                  event={ev}
-                                  calendar={calId ? calendarMap.get(calId) : undefined}
-                                  variant="chip"
-                                  onClick={(rect) => onSelectEvent(ev, rect)}
-                                  onMouseEnter={(rect) => onHoverEvent?.(ev, rect)}
-                                  onMouseLeave={onHoverLeave}
-                                  onContextMenu={onContextMenuEvent}
-                                  currentUserEmails={currentUserEmails}
-                                />
-                              );
-                            })}
-                          </div>
-                        </>
-                      )}
-                      {dayTasks.length > 0 && (
-                        <>
-                          <div className={cn("text-[10px] text-muted-foreground mb-1", allDayEvents.length > 0 && "mt-2")}>{t("tasks.label")}</div>
-                          <div className="space-y-0.5">
-                            {dayTasks.map((task) => {
-                              const isCompleted = task.progress === "completed";
-                              const cal = calendars.find(c => task.calendarIds[c.id]);
-                              const color = cal?.color || "#3b82f6";
-                              return (
-                                <div
-                                  key={task.id}
-                                  data-calendar-task={task.id}
-                                  onClick={() => onSelectTask?.(task)}
-                                  className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-xs cursor-pointer hover:bg-muted/50 transition-colors"
-                                  style={{ borderInlineStart: `3px solid ${color}` }}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); onToggleTaskComplete?.(task); }}
-                                    className={cn(
-                                      "flex-shrink-0 w-3.5 h-3.5 rounded-full border flex items-center justify-center",
-                                      isCompleted
-                                        ? "bg-success border-success text-success-foreground"
-                                        : "border-muted-foreground/40 hover:border-primary"
-                                    )}
-                                    aria-label={isCompleted ? t("tasks.mark_incomplete") : t("tasks.mark_complete")}
-                                  >
-                                    {isCompleted && <Check className="h-2.5 w-2.5" />}
-                                  </button>
-                                  <span className={cn("truncate", isCompleted && "line-through text-muted-foreground")}>
-                                    {task.title || t("tasks.no_title")}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
+
+          {hasAllDayArea && (
+            <div className="flex border-b border-border">
+              <div
+                className={cn(gutterClass, "text-[10px] text-muted-foreground p-1 text-end flex flex-col justify-between")}
+                style={{ height: allDayHeight }}
+              >
+                <span>{t("events.all_day")}</span>
+                {isExpandable && (
+                  <button
+                    type="button"
+                    aria-label="all-day-expand"
+                    aria-expanded={isAllDayExpanded}
+                    onClick={() => setIsAllDayExpanded((prev) => !prev)}
+                    className="self-end mt-auto text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-0.5 rounded px-1 py-0.5 hover:bg-muted transition-colors cursor-pointer"
+                    title={isAllDayExpanded ? t("events.show_less") : t("events.show_more")}
+                  >
+                    {isAllDayExpanded ? (
+                      <span>▲</span>
+                    ) : (
+                      <>
+                        <span>+{maxContentRows - DEFAULT_ALL_DAY_MAX_ROWS}</span>
+                        <span>▼</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+              <div
+                data-testid="day-all-day-grid"
+                className="relative grid border-s border-border overflow-hidden"
+                style={{ ...columnsStyle, height: allDayHeight }}
+                onContextMenu={onContextMenuEmpty ? (e) => {
+                  if ((e.target as HTMLElement).closest("[data-calendar-event],[data-calendar-task],button")) return;
+                  const dayEl = (e.target as HTMLElement).closest<HTMLElement>("[data-day-allday]");
+                  const dayDate = dayEl ? days[Number(dayEl.dataset.dayAllday)] : undefined;
+                  if (dayDate) onContextMenuEmpty(e, dayDate, undefined, true);
+                } : undefined}
+              >
+                {days.map((day, dayIndex) => {
+                  const key = format(day, "yyyy-MM-dd");
+                  const allDayEvents = eventsByDay.get(key)?.allDay ?? [];
+                  const dayTasks = tasksByDay.get(key) ?? [];
+                  const allDayCount = allDayEvents.length;
+                  return (
+                    <div
+                      key={key}
+                      data-day-allday={dayIndex}
+                      className="relative min-h-[28px] border-e border-border last:border-e-0"
+                    >
+                      {allDayEvents.map((ev, evIndex) => {
+                        const calId = getPrimaryCalendarId(ev);
+                        return (
+                          <div
+                            key={ev.id}
+                            className="absolute px-0.5 pointer-events-auto"
+                            style={{
+                              left: 1,
+                              right: 1,
+                              top: evIndex * 24 + 2,
+                              height: 20,
+                            }}
+                          >
+                            <EventCard
+                              event={ev}
+                              calendar={calId ? calendarMap.get(calId) : undefined}
+                              variant="chip"
+                              onClick={(rect) => onSelectEvent(ev, rect)}
+                              onMouseEnter={(rect) => onHoverEvent?.(ev, rect)}
+                              onMouseLeave={onHoverLeave}
+                              onContextMenu={onContextMenuEvent}
+                              currentUserEmails={currentUserEmails}
+                            />
+                          </div>
+                        );
+                      })}
+                      {dayTasks.map((task, taskIndex) => (
+                        <div
+                          key={`task-${task.id}-${task.due ?? dayIndex}`}
+                          className="absolute px-0.5 pointer-events-auto"
+                          data-calendar-task={task.id}
+                          style={{
+                            left: 1,
+                            right: 1,
+                            top: (allDayCount + taskIndex) * 24 + 2,
+                            height: 20,
+                          }}
+                        >
+                          <CalendarTaskChip
+                            task={task}
+                            calendar={calendars.find(c => task.calendarIds[c.id])}
+                            onToggleComplete={onToggleTaskComplete}
+                            onSelect={onSelectTask}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div>
