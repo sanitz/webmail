@@ -917,7 +917,6 @@ export interface CalendarTask {
   useDefaultAlerts?: boolean;
   recurrenceOverrides?: Record<string, Partial<CalendarTask> & { excluded?: boolean }> | null;
   recurrenceId?: string | null;
-  originalId?: string;
   alerts: Record<string, CalendarEventAlert> | null;
   relatedTo: Record<string, CalendarRelation> | null;
   links?: Record<string, CalendarLink> | null;
