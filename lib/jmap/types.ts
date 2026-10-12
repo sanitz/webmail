@@ -835,7 +835,6 @@ export interface CalendarTask {
   recurrenceRules: CalendarRecurrenceRule[] | null;
   recurrenceOverrides?: Record<string, Partial<CalendarTask> & { excluded?: boolean }> | null;
   recurrenceId?: string | null;
-  originalId?: string;
   alerts: Record<string, CalendarEventAlert> | null;
   relatedTo: Record<string, CalendarRelation> | null;
   // Client-only, set on tasks from a shared calendar account. Their `id` and
