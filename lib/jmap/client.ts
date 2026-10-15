@@ -8021,10 +8021,12 @@ export class JMAPClient implements IJMAPClient {
 
   /**
    * Ids of the given calendars that hold only tasks and no events, so the event
-   * calendar UI can hide them. Stalwart's Calendar/get exposes no
-   * supported-component set, so this is derived by inspecting objects per calendar.
+   * calendar UI can hide them, plus the ids whose classification rests on hard
+   * evidence (`confirmed`). Stalwart's Calendar/get exposes no supported-component
+   * set, so the CalDAV supported-calendar-component-set is read first; calendars
+   * it does not cover are classified by inspecting their objects.
    *
-   * Each calendar is queried on its own with the singular `inCalendar`
+   * Each scanned calendar is queried on its own with the singular `inCalendar`
    * condition, so a large event archive in one calendar no longer pushes the
    * scan past its cap for all the others. A calendar stops being scanned as
    * soon as one event turns up; one whose pages are all tasks is paged to the
@@ -8085,9 +8087,12 @@ export class JMAPClient implements IJMAPClient {
     const timeZone = await this.calendarTimeZone();
     const maxCalls = Math.max(1, this.getMaxCallsInRequest());
     const maxGet = Math.max(1, this.getMaxObjectsInGet());
-    const tasksOnly = new Set<string>();
+    // Scan results are merged only once the scan completed, so a failure part
+    // way through leaves just the CalDAV evidence (fail open).
+    const scannedTasksOnly = new Set<string>();
+    const scannedConfirmed = new Set<string>();
     const position = new Map<string, number>();
-    let pending = Array.from(new Set(rawCalendarIds)); // calendars with no event seen so far
+    let pending = Array.from(new Set(calendarsToScan)); // calendars with no event seen so far
 
     try {
       while (pending.length > 0) {
@@ -8119,7 +8124,7 @@ export class JMAPClient implements IJMAPClient {
           const getResp = await this.request([
             ["CalendarEvent/get", { accountId, ids: allIds.slice(i, i + maxGet), properties: PROPERTIES, ...(timeZone ? { timeZone } : {}) }, "0"]
           ], this.calendarUsing());
-          if (getResp.methodResponses?.[0]?.[0] !== "CalendarEvent/get") return new Set(); // fail open
+          if (getResp.methodResponses?.[0]?.[0] !== "CalendarEvent/get") return { tasksOnly, confirmed }; // fail open
           for (const obj of (getResp.methodResponses[0][1]?.list || []) as ScannedCalendarObject[]) {
             if (obj.id) objectMap.set(obj.id as string, obj);
           }
@@ -8129,15 +8134,23 @@ export class JMAPClient implements IJMAPClient {
         for (const [calId, ids] of pageIds) {
           const start = position.get(calId) ?? 0;
           if (ids.length === 0) {
-            // End of the calendar. Only mark it if earlier pages held tasks.
-            if (start > 0) tasksOnly.add(calId);
+            // End of the calendar. Only mark it if earlier pages held tasks;
+            // an empty calendar stays unconfirmed so a sticky flag still applies.
+            if (start > 0) {
+              scannedTasksOnly.add(calId);
+              scannedConfirmed.add(calId);
+            }
             continue;
           }
           const calObjects = ids.map((id) => objectMap.get(id)).filter(Boolean) as ScannedCalendarObject[];
           if (calObjects.length === 0) continue;
-          if (calObjects.some((obj) => !isTaskLikeObject(obj))) continue; // holds an event
+          if (calObjects.some((obj) => !isTaskLikeObject(obj))) {
+            scannedConfirmed.add(calId); // holds an event
+            continue;
+          }
           if (ids.length < QUERY_PAGE) {
-            tasksOnly.add(calId);
+            scannedTasksOnly.add(calId);
+            scannedConfirmed.add(calId);
             continue;
           }
           const nextPosition = start + ids.length;
@@ -8148,6 +8161,8 @@ export class JMAPClient implements IJMAPClient {
         pending = next;
       }
 
+      scannedTasksOnly.forEach((id) => tasksOnly.add(id));
+      scannedConfirmed.forEach((id) => confirmed.add(id));
       return { tasksOnly, confirmed };
     } catch {
       return { tasksOnly, confirmed }; // preserve CalDAV-detected task calendars
