@@ -106,7 +106,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         const { [overrideKey]: _replaced, ...rest } = updated.recurrenceOverrides || {};
         // null removes the override, as on the server (JMAP patch semantics).
         updated.recurrenceOverrides = v === null ? rest : { ...rest, [overrideKey]: v as TaskOverride };
-        delete (updated as Record<string, unknown>)[k];
+        delete (updated as unknown as Record<string, unknown>)[k];
       }
     }
     set({
@@ -216,7 +216,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     });
     // A toggle is reported as onTaskToggleComplete only, not also as
     // onTaskUpdate, so a plugin that listens to both sees each change once.
-    void taskHooks.onTaskToggleComplete.emit({ taskId: task.id, complete: newProgress === 'completed' });
+    void taskHooks.onTaskToggleComplete.emit({ taskId: task.id, complete: task.progress !== 'completed' });
   },
 
   clearTasks: () => set({ tasks: [], selectedTaskId: null, error: null }),
