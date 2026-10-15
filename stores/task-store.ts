@@ -233,7 +233,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     });
     // A toggle is reported as onTaskToggleComplete only, not also as
     // onTaskUpdate, so a plugin that listens to both sees each change once.
-    void taskHooks.onTaskToggleComplete.emit({ taskId: task.id, complete: newProgress === 'completed' });
+    void taskHooks.onTaskToggleComplete.emit({ taskId: task.id, complete: task.progress !== 'completed' });
   },
 
   clearTasks: () => {

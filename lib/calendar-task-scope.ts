@@ -12,9 +12,9 @@ export type PendingTaskScopeAction =
 
 export interface TaskStoreOperations {
   tasks: CalendarTask[];
-  updateTask: (client: IJMAPClient, id: string, updates: Partial<CalendarTask>) => Promise<void>;
-  createTask: (client: IJMAPClient, task: Partial<CalendarTask>) => Promise<CalendarTask>;
-  deleteTask: (client: IJMAPClient, id: string) => Promise<void>;
+  updateTask: (client: IJMAPClient, id: string, updates: Partial<CalendarTask>) => Promise<unknown>;
+  createTask: (client: IJMAPClient, task: Partial<CalendarTask>) => Promise<CalendarTask | null>;
+  deleteTask: (client: IJMAPClient, id: string) => Promise<unknown>;
 }
 
 export function isRecurringTask(task: CalendarTask): boolean {

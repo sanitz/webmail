@@ -16,7 +16,8 @@ vi.mock('@/stores/settings-store', () => {
   };
   const fn = (selector?: (s: typeof state) => unknown) => (selector ? selector(state) : state);
   fn.getState = () => state;
-  return { useSettingsStore: fn };
+  // template-store registers its sync bridge on import (upstream 1.15.0).
+  return { useSettingsStore: fn, registerTemplateSyncBridge: () => {} };
 });
 
 vi.mock('@/stores/calendar-store', () => ({

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { JMAPClient } from '../jmap/client';
+import * as webdav from '../webdav/calendar-collection';
 
 function makeSession() {
   return {
@@ -238,5 +239,34 @@ describe('JMAPClient getTasksOnlyCalendarIds chunking & detection (#1208)', () =
     expect(eventCal?.isTasksOnlyConfirmed).toBe(true);
     expect(taskCal?.isTasksOnly).toBe(true);
     expect(taskCal?.isTasksOnlyConfirmed).toBe(true);
+  });
+
+  it('keeps CalDAV-detected task calendars when the object scan of the others fails', async () => {
+    vi.spyOn(webdav, 'fetchCalendarCollectionComponents').mockResolvedValue({ 'cal-dav-tasks': ['VTODO'] });
+    fetchSpy.mockImplementation(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      const methodCalls = body.methodCalls as [string, Record<string, unknown>, string][];
+      const [method, , tag] = methodCalls[0];
+      if (method === 'Calendar/get') {
+        const list = [{ id: 'cal-dav-tasks', name: 'Aufgaben' }, { id: 'cal-unknown', name: 'Alt' }];
+        return jsonResponse({ methodResponses: [['Calendar/get', { list }, tag]] });
+      }
+      if (method === 'CalendarEvent/query') {
+        return jsonResponse({ methodResponses: methodCalls.map(([, , t]) => ['CalendarEvent/query', { ids: ['obj-1'] }, t]) });
+      }
+      if (method === 'CalendarEvent/get') {
+        return jsonResponse({ methodResponses: [['error', { type: 'serverFail' }, tag]] });
+      }
+      return jsonResponse({ methodResponses: [] });
+    });
+
+    const calendars = await client.getAllCalendars();
+    const davTasks = calendars.find((c) => c.id === 'cal-dav-tasks');
+    const unknown = calendars.find((c) => c.id === 'cal-unknown');
+
+    expect(davTasks?.isTasksOnly).toBe(true);
+    expect(davTasks?.isTasksOnlyConfirmed).toBe(true);
+    expect(unknown?.isTasksOnly).toBe(false);
+    expect(unknown?.isTasksOnlyConfirmed).toBeFalsy();
   });
 });
