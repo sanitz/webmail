@@ -371,8 +371,8 @@ export function CalendarDayView({
                       >
                         {format(day, "d")}
                       </div>
+                      <PluginDayLabel surface="calendar-day-header" date={key} className="w-full" />
                     </div>
-                    <PluginDayLabel surface="calendar-day-header" date={key} className="w-full" />
                   </div>
                 );
               })}

@@ -51,7 +51,6 @@ import { useIsFocusedProTab, useIsPaneScoped } from "@/hooks/use-pane-context";
 import { useProMultiAccountCalendars } from "@/hooks/use-pro-multi-account-calendars";
 import { ResizeHandle } from "@/components/layout/resize-handle";
 import { buildDuplicateEventData } from "@/lib/calendar-duplicate";
-import { filterTasksByCalendars } from "@/lib/calendar-tasks";
 import {
   baseEventStoreId,
   buildFallbackExcludePatch,

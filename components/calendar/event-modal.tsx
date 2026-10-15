@@ -291,7 +291,9 @@ export function EventModal({
 
   // Keep calendarId in sync when calendars arrive asynchronously or current selection is invalid
   useEffect(() => {
-    if (isEdit && event?.calendarIds) {
+    // Only while the selection names no loaded calendar (raw vs namespaced id,
+    // calendars still loading): a calendar the user picked must stick.
+    if (isEdit && event?.calendarIds && !calendars.some(c => c.id === calendarId)) {
       const primary = getPrimaryCalendarId(event);
       if (primary) {
         const match = calendars.find(c => c.id === primary || c.originalId === primary);
