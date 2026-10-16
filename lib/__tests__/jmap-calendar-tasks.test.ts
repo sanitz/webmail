@@ -48,18 +48,24 @@ const modalPayload = (due: string | null): Partial<CalendarTask> => ({
   calendarIds: { 'cal-1': true },
 });
 
+/** A client with an active session on acct-1, no network login needed. */
+function makeSignedInClient(): JMAPClient {
+  const client = new JMAPClient('https://mail.example.com', 'test', 'pass');
+  const internals = client as unknown as { session: unknown; accountId: string; apiUrl: string; accounts: Record<string, unknown> };
+  internals.session = makeSession();
+  internals.accountId = 'acct-1';
+  internals.apiUrl = 'https://mail.example.com/jmap/api';
+  internals.accounts = makeSession().accounts;
+  return client;
+}
+
 describe('JMAPClient task operations (#958)', () => {
   let client: JMAPClient;
   let sentCalls: Call[];
 
   beforeEach(() => {
     sentCalls = [];
-    client = new JMAPClient('https://mail.example.com', 'test', 'pass');
-    // Simulate active session
-    (client as unknown as { session: unknown; accountId: string; apiUrl: string }).session = makeSession();
-    (client as unknown as { accountId: string }).accountId = 'acct-1';
-    (client as unknown as { apiUrl: string }).apiUrl = 'https://mail.example.com/jmap/api';
-    (client as unknown as { accounts: Record<string, unknown> }).accounts = makeSession().accounts;
+    client = makeSignedInClient();
 
     vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
       const body = JSON.parse((init?.body as string) || '{}');
@@ -304,5 +310,33 @@ describe('JMAPClient tasks in shared calendars (#1204)', () => {
     expect(set?.args.accountId).toBe('acct-2');
     expect((set?.args.create as Record<string, Record<string, unknown>>)['new-task'].calendarIds).toEqual({ 'cal-s': true });
     expect(created.id).toBe('acct-2:new-id');
+  });
+});
+
+describe('JMAPClient getCalendarTasks with a calendar filter (tiger-iac#1442)', () => {
+  let client: JMAPClient;
+
+  beforeEach(() => {
+    client = makeSignedInClient();
+
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse((init?.body as string) || '{}');
+      const methodResponses = (body.methodCalls as [string, Record<string, unknown>, string][]).map(([method, , tag]) =>
+        method === 'CalendarEvent/query'
+          ? [method, { ids: ['ev-1', 'task-1'] }, tag]
+          : [method, {
+              list: [
+                { id: 'ev-1', '@type': 'Event', title: 'Meeting', start: '2026-10-20T09:00:00', calendarIds: { 'cal-1': true } },
+                { id: 'task-1', '@type': 'Task', title: 'Todo', progress: 'needs-action', calendarIds: { 'cal-1': true } },
+              ],
+              notFound: [],
+            }, tag]);
+      return jsonResponse({ methodResponses, sessionState: 's1' });
+    }));
+  });
+
+  it('never lists an event as a task, even when calendar ids are given', async () => {
+    const tasks = await client.getCalendarTasks(['cal-1']);
+    expect(tasks.map((t) => t.title)).toEqual(['Todo']);
   });
 });
