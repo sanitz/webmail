@@ -140,11 +140,6 @@ export function completeDateOnly(value: string): string {
 export function sanitizeOutgoingCalendarEventData<T extends Partial<CalendarEvent>>(event: T): T {
   const normalized = normalizeCalendarEventLike(event);
   if (!normalized.showWithoutTime) {
-    // A date-only start is never a valid LocalDateTime; Stalwart silently
-    // drops it (a month-view drag patches only { start }, tiger-iac#1313).
-    if (typeof normalized.start === 'string' && normalized.start !== completeDateOnly(normalized.start)) {
-      return { ...normalized, start: completeDateOnly(normalized.start) } as T;
-    }
     return normalized;
   }
 

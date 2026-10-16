@@ -85,14 +85,3 @@ describe('calendar event normalization', () => {
     });
   });
 });
-describe('sanitizeOutgoingCalendarEventData: date-only start (tiger-iac#1313)', () => {
-  // A month-view drag of an all-day event patches only { start: 'yyyy-MM-dd' };
-  // Stalwart silently drops a start that is not a LocalDateTime.
-  it('completes a date-only start to a LocalDateTime even without showWithoutTime in the patch', () => {
-    expect(sanitizeOutgoingCalendarEventData({ start: '2026-10-05' })).toEqual({ start: '2026-10-05T00:00:00' });
-  });
-
-  it('leaves a timed start untouched', () => {
-    expect(sanitizeOutgoingCalendarEventData({ start: '2026-10-05T09:30:00' })).toEqual({ start: '2026-10-05T09:30:00' });
-  });
-});

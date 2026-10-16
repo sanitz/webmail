@@ -459,20 +459,3 @@ describe('single occurrences of all-day series (tiger-iac#1311)', () => {
     expect(client.deleteCalendarEvent).toHaveBeenCalledWith('maaaaab', undefined, undefined);
   });
 });
-
-describe('dragging a single all-day event (tiger-iac#1313)', () => {
-  it('sends the new day as a LocalDateTime, which Stalwart keeps', async () => {
-    const client = fakeClient();
-    const event = occurrence({
-      id: 'e1', originalId: 'e1', baseEventId: undefined, start: '2026-10-01T00:00:00', duration: 'P1D',
-      timeZone: null, showWithoutTime: true, recurrenceId: null, recurrenceIdTimeZone: null,
-      recurrenceRules: null, recurrenceOverrides: null,
-    });
-    useCalendarStore.setState({ events: [event] });
-
-    await useCalendarStore.getState().updateEvent(client, 'e1', { start: '2026-10-05' });
-
-    expect(client.updateCalendarEvent).toHaveBeenCalledWith('e1', { start: '2026-10-05T00:00:00' }, undefined, undefined);
-    expect(useCalendarStore.getState().events[0].start).toBe('2026-10-05T00:00:00');
-  });
-});
