@@ -7835,7 +7835,6 @@ export class JMAPClient implements IJMAPClient {
       }
 
       const tasks: CalendarTask[] = [];
-      const hasCalendarFilter = Boolean(calendarIds && calendarIds.length > 0);
       for (const obj of allObjects) {
         const type = obj['@type'];
         const isExplicitTask = typeof type === 'string' && type.toLowerCase() === 'task';
@@ -7851,7 +7850,7 @@ export class JMAPClient implements IJMAPClient {
           || ('percentComplete' in obj);
         const isCalDavTask = type !== 'Event' && hasTaskFields;
 
-        if (!isExplicitTask && !isCalDavTask && !hasCalendarFilter) continue;
+        if (!isExplicitTask && !isCalDavTask) continue;
 
         tasks.push(normalizeCalendarTask({ ...obj, '@type': 'Task' as const } as CalendarTask));
       }
