@@ -3349,7 +3349,8 @@
       "delete": "Kustuta",
       "rsvp_title": "Vasta korduvale sündmusele",
       "rsvp_description": "See on korduv sündmus. Millistele sündmustele sinu vastus kehtib?",
-      "respond": "Vasta"
+      "respond": "Vasta",
+      "single_occurrence_blocked": "Kogu päeva sarjade üksikuid kordusi ei saa praegu meiliserveri vea tõttu muuta. Üksiku korduse kustutamine töötab endiselt."
     },
     "alerts": {
       "title": "Meeldetuletused",
@@ -3485,9 +3486,11 @@
       "event_duplicated": "Sündmus dubleeritud",
       "event_error": "Sündmuse salvestamine ebaõnnestus",
       "task_due": "Ülesande tähtaeg",
+      "task_error": "Ülesannet ei õnnestunud salvestada",
       "event_exported": "Sündmus eksporditud",
       "title_copied": "Pealkiri kopeeritud",
-      "link_copied": "Link kopeeritud"
+      "link_copied": "Link kopeeritud",
+      "single_occurrence_blocked": "Kogu päeva sarjade üksikuid kordusi ei saa praegu muuta (meiliserveri viga)."
     },
     "status": {
       "loading_calendars": "Kalendrite laadimine...",
@@ -3672,7 +3675,10 @@
       "select_view": "Muuda vaadet, praegu {view}"
     },
     "other_calendars": "Muud kalendrid",
-    "calendar_options": "Kalendri {name} valikud"
+    "calendar_options": "Kalendri {name} valikud",
+    "errors": {
+      "no_writable_calendar_for_event": "Ei saa salvestada: see kalender ei võta sündmusi vastu."
+    }
   },
   "calendar_event_notifications": {
     "someone": "Keegi",
