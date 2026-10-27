@@ -168,7 +168,8 @@ describe('EventModal tasks-only & writable calendar guard (#1208)', () => {
         title: 'New Event Title',
         calendarIds: { 'cal-work': true },
       }),
-      false
+      false,
+      expect.anything()
     );
   });
 
@@ -212,7 +213,8 @@ describe('EventModal tasks-only & writable calendar guard (#1208)', () => {
         title: 'Namespaced Event Title',
         calendarIds: { 'acc1:cal-work': true },
       }),
-      false
+      false,
+      expect.anything()
     );
   });
 });

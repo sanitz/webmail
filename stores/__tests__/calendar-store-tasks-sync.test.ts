@@ -86,7 +86,7 @@ describe('calendar-store <-> settings-store taskCalendarIds sync (#1208)', () =>
     expect(useSettingsStore.getState().taskCalendarIds['cal-actually-mixed']).toBeUndefined();
   });
 
-  it('auto-selects a task-only calendar the client has never seen before, even with an existing non-empty selection (#1208 review)', async () => {
+  it('leaves a task-only calendar out of selectedCalendarIds per upstream 1.18.0 contract (#1208 review)', async () => {
     // Simulate an existing user: they already had a non-empty selection from
     // a prior fetch that only knew about one event calendar.
     useCalendarStore.setState({
@@ -105,11 +105,11 @@ describe('calendar-store <-> settings-store taskCalendarIds sync (#1208)', () =>
     await useCalendarStore.getState().fetchCalendars(mockClient);
 
     const state = useCalendarStore.getState();
-    // The pre-existing selection must survive, and the calendar that just
-    // became visible for the first time must be selected by default instead
-    // of silently disappearing from TaskListView until manually toggled on.
+    // Upstream 1.18.0 withNewCalendars keeps task-only calendars out of
+    // selectedCalendarIds by default while recording them in taskCalendarIds.
     expect(state.selectedCalendarIds).toContain('cal-events');
-    expect(state.selectedCalendarIds).toContain('cal-new-tasks');
+    expect(state.selectedCalendarIds).not.toContain('cal-new-tasks');
+    expect(state.taskCalendarIds['cal-new-tasks']).toBe(true);
   });
 
   it('respects a user having deliberately unselected an already-known task calendar (#1208 review)', async () => {
