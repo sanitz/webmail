@@ -32,7 +32,6 @@ import {
 } from "@/lib/calendar-participants";
 import { canUserRsvp, getEventEditability, canCreateEventsIn } from "@/lib/calendar-editability";
 import { changesWhen, type EditorAttendee, type EventEditorState } from "@/lib/recurrence-scope-edit";
-import { toast } from "@/stores/toast-store";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { useSettingsStore } from "@/stores/settings-store";
 import { generateUUID } from "@/lib/utils";
@@ -752,26 +751,24 @@ export function EventModal({
       return;
     }
 
-    try {
-      const effectiveCalendarId = calendarId
-        || (defaultCalendarId && calendars.find(c => (c.id === defaultCalendarId || c.originalId === defaultCalendarId) && canCreateEventsIn(c, isSubscriptionCalendar))?.id)
-        || calendars.find(c => c.isDefault && canCreateEventsIn(c, isSubscriptionCalendar))?.id
-        || calendars.find(c => canCreateEventsIn(c, isSubscriptionCalendar))?.id;
+    const effectiveCalendarId = calendarId
+      || (defaultCalendarId && calendars.find(c => (c.id === defaultCalendarId || c.originalId === defaultCalendarId) && canCreateEventsIn(c, isSubscriptionCalendar))?.id)
+      || calendars.find(c => c.isDefault && canCreateEventsIn(c, isSubscriptionCalendar))?.id
+      || calendars.find(c => canCreateEventsIn(c, isSubscriptionCalendar))?.id;
 
-      if (!effectiveCalendarId) {
-        toast.error(t('errors.no_writable_calendar_for_event'));
-        return;
-      }
+    if (!effectiveCalendarId) {
+      toast.error(t('errors.no_writable_calendar_for_event'));
+      return;
+    }
 
-      const targetCal = calendars.find(c => c.id === effectiveCalendarId || c.originalId === effectiveCalendarId);
-      if (!targetCal || !canCreateEventsIn(targetCal, isSubscriptionCalendar)) {
-        toast.error(t('errors.no_writable_calendar_for_event'));
-        return;
-      }
-      }
+    const targetCal = calendars.find(c => c.id === effectiveCalendarId || c.originalId === effectiveCalendarId);
+    if (!targetCal || !canCreateEventsIn(targetCal, isSubscriptionCalendar)) {
+      toast.error(t('errors.no_writable_calendar_for_event'));
+      return;
+    }
 
-      const pendingAttendee = participantInputRef.current?.flush() ?? null;
-      const effectiveAttendees = pendingAttendee ? [...attendees, pendingAttendee] : attendees;
+    const pendingAttendee = participantInputRef.current?.flush() ?? null;
+    const effectiveAttendees = pendingAttendee ? [...attendees, pendingAttendee] : attendees;
 
       const startStr = allDay
         ? `${startDate}T00:00:00`

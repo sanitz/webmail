@@ -613,7 +613,6 @@ function selectionAfterFetch(
   return reconciled.includes(BIRTHDAY_CALENDAR_ID) ? [...defaultSelected, BIRTHDAY_CALENDAR_ID] : defaultSelected;
 }
 
-/**
 function withNewCalendars(
   selection: string[],
   known: string[] | null,
@@ -633,15 +632,6 @@ function withNewCalendars(
     selectedCalendarIds: added.length > 0 ? [...selection, ...added] : selection,
     knownCalendarIds: [...new Set([...seen, ...ids])].filter((id) => id !== BIRTHDAY_CALENDAR_ID),
   };
-}
-
-function computeNewlySurfacedTaskIds(previousCalendars: Calendar[], calendars: Calendar[]): string[] {
-  const rawIdOf = (c: Calendar) => c.originalId ?? stripLocalAccountPrefix(c.id, c.localAccountId);
-  const previousRawIds = new Set(previousCalendars.map(rawIdOf));
-  return calendars
-    .filter((c) => c.isTasksOnly && !previousRawIds.has(rawIdOf(c)))
-    .map((c) => c.id);
-}
 }
 
 // In-flight refresh dedup. Concurrent callers (auto-interval +
@@ -1028,14 +1018,16 @@ export const useCalendarStore = create<CalendarStore>()(
           // list and the selection as they were.
           const { calendars: rawCalendars, failedAccountIds } = await client.getAllCalendarsWithFailures();
           if (currentStoreEpoch() !== epoch) return;
-          const { selectedCalendarIds, taskCalendarIds, calendars: previousCalendars } = get();
+          const { selectedCalendarIds, taskCalendarIds } = get();
           const { calendars: reconciled, updatedTaskCalendarIds, taskCalendarIdsChanged } =
             reconcileTaskCalendarIds(rawCalendars, taskCalendarIds);
           const calendars = sortCalendars(reconciled);
           if (taskCalendarIdsChanged) {
             useSettingsStore.getState().updateSetting('taskCalendarIds', updatedTaskCalendarIds);
           }
-          const defaultSelected = calendars.map((c) => c.id);
+          // Default the visible selection to event calendars only - tasks-only
+          // calendars stay out of the event grid.
+          const defaultSelected = calendars.filter((c) => !c.isTasksOnly).map((c) => c.id);
           const unloadedPrefixes = failedAccountIds.map((accountId) => `${accountId}:`);
           const newSelection = withNewCalendars(
             selectionAfterFetch(
@@ -1051,11 +1043,10 @@ export const useCalendarStore = create<CalendarStore>()(
             defaultSelected,
             unloadedPrefixes,
           );
-          const newlySurfacedTaskIds = computeNewlySurfacedTaskIds(previousCalendars, calendars);
           set({
             calendars,
             isLoading: false,
-            selectedCalendarIds: Array.from(new Set([...newSelection.selectedCalendarIds, ...newlySurfacedTaskIds])),
+            selectedCalendarIds: newSelection.selectedCalendarIds,
             knownCalendarIds: newSelection.knownCalendarIds,
             taskCalendarIds: updatedTaskCalendarIds,
           });
@@ -1134,14 +1125,16 @@ export const useCalendarStore = create<CalendarStore>()(
           );
           if (currentStoreEpoch() !== epoch) return;
           const rawCalendars = results.flat();
-          const { selectedCalendarIds, taskCalendarIds, calendars: previousCalendars } = get();
+          const { selectedCalendarIds, taskCalendarIds } = get();
           const { calendars: reconciled, updatedTaskCalendarIds, taskCalendarIdsChanged } =
             reconcileTaskCalendarIds(rawCalendars, taskCalendarIds);
           const calendars = sortCalendars(reconciled);
           if (taskCalendarIdsChanged) {
             useSettingsStore.getState().updateSetting('taskCalendarIds', updatedTaskCalendarIds);
           }
-          const defaultSelected = calendars.map((c) => c.id);
+          // Default the visible selection to event calendars only - tasks-only
+          // calendars stay out of the event grid.
+          const defaultSelected = calendars.filter((c) => !c.isTasksOnly).map((c) => c.id);
           const newSelection = withNewCalendars(
             selectionAfterFetch(
               selectedCalendarIds,
@@ -1157,11 +1150,10 @@ export const useCalendarStore = create<CalendarStore>()(
             unloadedPrefixes,
             activeLocalAccountId ?? undefined,
           );
-          const newlySurfacedTaskIds = computeNewlySurfacedTaskIds(previousCalendars, calendars);
           set({
             calendars,
             isLoading: false,
-            selectedCalendarIds: Array.from(new Set([...newSelection.selectedCalendarIds, ...newlySurfacedTaskIds])),
+            selectedCalendarIds: newSelection.selectedCalendarIds,
             knownCalendarIds: newSelection.knownCalendarIds,
             taskCalendarIds: updatedTaskCalendarIds,
           });
