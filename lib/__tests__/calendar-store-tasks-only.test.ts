@@ -91,7 +91,8 @@ describe('useCalendarStore - task-only calendar persistence (#1208)', () => {
     expect(taskCal?.isTasksOnly).toBe(true);
     expect(regularCal?.isTasksOnly).toBe(false);
     expect(state.selectedCalendarIds).toContain('cal-regular');
-    expect(state.selectedCalendarIds).toContain('cal-custom-task');
+    // Upstream 1.18.0 withNewCalendars keeps task-only calendars out of selectedCalendarIds by default
+    expect(state.selectedCalendarIds).not.toContain('cal-custom-task');
   });
 
   it('merges taskCalendarIds in multi-account aggregated fetchAllAccountsCalendars', async () => {
@@ -123,7 +124,8 @@ describe('useCalendarStore - task-only calendar persistence (#1208)', () => {
     expect(acct1Cal?.isTasksOnly).toBe(false);
     expect(acct2Cal?.isTasksOnly).toBe(true);
     expect(state.selectedCalendarIds).toContain(acct1Cal?.id);
-    expect(state.selectedCalendarIds).toContain(acct2Cal?.id);
+    // Upstream 1.18.0 withNewCalendars keeps task-only calendars out of selectedCalendarIds by default
+    expect(state.selectedCalendarIds).not.toContain(acct2Cal?.id);
   });
 
   it('cleans up taskCalendarIds when a calendar is removed', async () => {
