@@ -1832,8 +1832,8 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
   const pluginTaskView = usePluginTaskView();
   // The tasks the task list shows; plugin buttons in its toolbar act on them.
   const listedTaskIds = useMemo(
-    () => filterTasksForList(taskStore.tasks, selectedCalendarIds, taskStore.filter, taskStore.showCompleted, displayCalendars).map((task) => task.id),
-    [taskStore.tasks, selectedCalendarIds, taskStore.filter, taskStore.showCompleted, displayCalendars],
+    () => filterTasksForList(taskStore.tasks, selectedCalendarIds, taskStore.filter, displayCalendars).map((task) => task.id),
+    [taskStore.tasks, selectedCalendarIds, taskStore.filter, displayCalendars],
   );
 
   // Tasks on the month, week and day grids follow the calendar filter like

@@ -57,7 +57,6 @@ describe('TaskListView', () => {
         calendars={calendars}
         selectedCalendarIds={['cal-events', 'cal-tasks-only']}
         filter="all"
-        showCompleted={false}
         onSelectTask={vi.fn()}
         onToggleComplete={vi.fn()}
       />
@@ -73,7 +72,6 @@ describe('TaskListView', () => {
         calendars={calendars}
         selectedCalendarIds={['cal-events']}
         filter="all"
-        showCompleted={false}
         onSelectTask={vi.fn()}
         onToggleComplete={vi.fn()}
       />
