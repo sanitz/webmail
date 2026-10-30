@@ -16,7 +16,7 @@ import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { taskToView } from "@/lib/plugin-projection";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useConfirmDialog } from "@/hooks/use-confirm-dialog";
-import { canCreateEventsIn } from "@/lib/calendar-editability";
+import { canCreateTasksIn } from "@/lib/calendar-editability";
 import { toast } from "@/stores/toast-store";
 import { debug } from "@/lib/debug";
 
@@ -74,8 +74,8 @@ export function TaskModal({
   const pluginTaskProps = useMemo(() => (task ? { task: taskToView(task) } : null), [task]);
 
   // The calendars a task can go into: not read-only ones (Birthdays,
-  // feeds), the same rule as the event editor.
-  const writableCalendars = calendars.filter((c) => canCreateEventsIn(c, isSubscriptionCalendar));
+  // feeds). Tasks can go into task-only calendars.
+  const writableCalendars = calendars.filter((c) => canCreateTasksIn(c, isSubscriptionCalendar));
   const defaultCalendarId = writableCalendars.find((c) => c.isTasksOnly)?.id ?? writableCalendars[0]?.id ?? calendars[0]?.id ?? "";
 
   const [title, setTitle] = useState(task?.title ?? "");

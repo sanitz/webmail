@@ -27,6 +27,19 @@ export function canCreateEventsIn(
   return !r || r.mayWriteAll || r.mayWriteOwn;
 }
 
+/**
+ * Whether new tasks may be created in this calendar: writable, not an iCal
+ * subscription. Unlike events, tasks CAN go into task-only calendars.
+ */
+export function canCreateTasksIn(
+  calendar: Pick<Calendar, 'id' | 'myRights'>,
+  isSubscriptionCalendar?: (calendarId: string) => boolean,
+): boolean {
+  if (isSubscriptionCalendar?.(calendar.id)) return false;
+  const r = calendar.myRights;
+  return !r || r.mayWriteAll || r.mayWriteOwn;
+}
+
 /** Ownerless (plain, non-scheduled) events are editable under `mayWriteOwn`. */
 export function eventHasNoOwner(event: CalendarEvent): boolean {
   if (event.organizerCalendarAddress) return false;
