@@ -55,7 +55,6 @@ import { useIsFocusedProTab, useIsPaneScoped } from "@/hooks/use-pane-context";
 import { useProMultiAccountCalendars } from "@/hooks/use-pro-multi-account-calendars";
 import { ResizeHandle } from "@/components/layout/resize-handle";
 import { buildDuplicateEventData } from "@/lib/calendar-duplicate";
-import { filterTasksByCalendars } from "@/lib/calendar-tasks";
 import { baseEventStoreId, isServerRecurrenceInstance } from "@/lib/recurrence-instances";
 import { deleteOccurrence, saveOccurrenceEdit, type EventEditorState } from "@/lib/recurrence-scope-edit";
 import { useContactNameResolver } from "@/hooks/use-contact-name-resolver";
@@ -63,7 +62,7 @@ import { getClientByLocalAccountId } from "@/stores/client-registry";
 import { useCalendarErrorMessage } from "@/hooks/use-calendar-error-message";
 import { getEventDisplayEndDate, getEventEndDate, getEventStartDate } from "@/lib/calendar-utils";
 import { displayNow, getEffectiveTimeZone } from "@/lib/timezone";
-import { canCreateEventsIn, getEventEditability, type EditabilityContext } from "@/lib/calendar-editability";
+import { canCreateEventsIn, canCreateTasksIn, getEventEditability, type EditabilityContext } from "@/lib/calendar-editability";
 import { QuickCreatePopover, type QuickCreateDraft } from "@/components/calendar/quick-create-popover";
 import { filterTasksBySelectedCalendars } from "@/lib/task-visibility";
 import { TASKS_LOAD_ERROR, useTaskStore } from "@/stores/task-store";
@@ -117,7 +116,7 @@ import { useConfig } from "@/hooks/use-config";
 import { CalendarPrint, type CalendarPrintContent } from "@/components/calendar/calendar-print";
 import { usePrintListener, usePrinting } from "@/components/print/print-root";
 import { requestPrint, usePrintStore } from "@/stores/print-store";
-import { isRecurringTask, executeTaskScopeAction, taskActionErrorKey, type PendingTaskScopeAction } from "@/lib/calendar-task-scope";
+import { isRecurringTask, executeTaskScopeAction, type PendingTaskScopeAction } from "@/lib/calendar-task-scope";
 import { AllDaySeriesOverrideBlockedError, isSingleOccurrenceChangeBlocked } from "@/lib/all-day-series-block";
 
 // `fromEditor`: asked on the way out of the event editor, which stays open
@@ -766,7 +765,7 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
         return;
       }
       debug.error("Toggling task completion failed:", err);
-      toast.error(t(taskActionErrorKey(err)));
+      toast.error(describeError(err, t("notifications.task_update_error")));
     });
   }, [client, toggleTaskCompleteFn, describeError, t]);
 
@@ -1202,7 +1201,7 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
 
   // Calendars a new task can go into: writable, not a subscription.
   const writableTaskCalendars = useMemo(
-    () => calendars.filter((c) => canCreateEventsIn(c, isSubscriptionCalendar)),
+    () => calendars.filter((c) => canCreateTasksIn(c, isSubscriptionCalendar)),
     [calendars, isSubscriptionCalendar],
   );
 

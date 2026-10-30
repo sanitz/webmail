@@ -5,6 +5,7 @@ import type { Calendar, CalendarTask } from '@/lib/jmap/types';
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  useFormatter: () => ({ dateTime: (d: Date | string) => String(d), relativeTime: (d: Date | string) => String(d), number: (n: number) => String(n) }),
 }));
 
 vi.mock('@/stores/settings-store', () => ({
