@@ -4,7 +4,6 @@ import { findTaskOverride, occurrenceRecurrenceId, overridePatch, taskRecurrence
 import type { IJMAPClient } from "@/lib/jmap/client-interface";
 import type { RecurrenceEditScope } from "@/components/calendar/recurrence-scope-dialog";
 import { generateDates } from "@/lib/recurrence-expansion";
-import { AllDaySeriesOverrideBlockedError } from "@/lib/all-day-series-block";
 
 export type PendingTaskScopeAction =
   | { type: "edit_task"; task: CalendarTask; updates: Partial<CalendarTask> }
@@ -239,8 +238,6 @@ export async function executeTaskScopeAction(
 }
 
 /** Translation key for a failed task action, so no failure stays silent (tiger-iac#1323). */
-export function taskActionErrorKey(error: unknown): string {
-  return error instanceof AllDaySeriesOverrideBlockedError
-    ? "notifications.single_occurrence_blocked"
-    : "notifications.task_error";
+export function taskActionErrorKey(_error: unknown): string {
+  return "notifications.task_error";
 }

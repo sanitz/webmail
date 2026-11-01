@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { executeTaskScopeAction, isRecurringTask, taskActionErrorKey, type TaskStoreOperations } from '../calendar-task-scope';
-import { AllDaySeriesOverrideBlockedError } from '@/lib/all-day-series-block';
 import type { CalendarTask } from '@/lib/jmap/types';
 import { createRecurrenceRule } from '@/lib/recurrence-rule';
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
@@ -454,17 +453,14 @@ describe('splitting a task series with "this_and_future" (tiger-iac#1323)', () =
 
 describe('taskActionErrorKey (tiger-iac#1323)', () => {
   it.each([
-    ['the all-day block', new AllDaySeriesOverrideBlockedError(), 'notifications.single_occurrence_blocked'],
-    ['any other failure, e.g. the network', new TypeError('Failed to fetch'), 'notifications.task_error'],
+    ['any failure, e.g. the network', new TypeError('Failed to fetch'), 'notifications.task_error'],
   ])('maps %s to a visible message', (_name, error, key) => {
     expect(taskActionErrorKey(error)).toBe(key);
   });
 
   it.each(readdirSync(join(process.cwd(), 'locales')))('every key it returns is translated in %s', (locale) => {
     const messages = JSON.parse(readFileSync(join(process.cwd(), 'locales', locale, 'common.json'), 'utf8'));
-    for (const error of [new AllDaySeriesOverrideBlockedError(), new Error('x')]) {
-      const [group, name] = taskActionErrorKey(error).split('.');
-      expect(messages.calendar[group][name], `${locale}: calendar.${group}.${name}`).toBeTruthy();
-    }
+    const [group, name] = taskActionErrorKey(new Error('x')).split('.');
+    expect(messages.calendar[group][name], `${locale}: calendar.${group}.${name}`).toBeTruthy();
   });
 });

@@ -1,5 +1,4 @@
 import { format, parseISO, startOfDay, endOfDay } from "date-fns";
-import { AllDaySeriesOverrideBlockedError, isAllDayOverrideBlocked } from "@/lib/all-day-series-block";
 import type { CalendarTask } from "@/lib/jmap/types";
 import { generateDates } from "@/lib/recurrence-expansion";
 
@@ -79,18 +78,12 @@ export function occurrenceRecurrenceId(task: CalendarTask): string | null {
 /**
  * JMAP patch setting one override on the master: a patch path into an existing
  * recurrenceOverrides map, the whole map when there is none yet.
- *
- * Throws AllDaySeriesOverrideBlockedError for an override with content on an
- * all-day series (lib/all-day-series-block.ts).
  */
 export function overridePatch(
   master: CalendarTask,
   recurrenceId: string,
   entry: Record<string, unknown>,
 ): Partial<CalendarTask> {
-  if (isAllDayOverrideBlocked(master, entry)) {
-    throw new AllDaySeriesOverrideBlockedError();
-  }
   const cleanEntry = { ...entry };
   if (typeof cleanEntry.due === 'string' && !cleanEntry.due.includes('T')) {
     cleanEntry.due = `${cleanEntry.due}T00:00:00`;

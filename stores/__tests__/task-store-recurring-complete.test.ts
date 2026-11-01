@@ -3,7 +3,6 @@ import { useTaskStore } from '../task-store';
 import type { CalendarTask } from '@/lib/jmap/types';
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
 import { createRecurrenceRule } from '@/lib/recurrence-rule';
-import { AllDaySeriesOverrideBlockedError } from '@/lib/all-day-series-block';
 import { groupTasksByDueDay } from '@/lib/calendar-tasks';
 
 function makeTask(overrides: Partial<CalendarTask> = {}): CalendarTask {
@@ -213,7 +212,7 @@ describe('task-store recurring toggleTaskComplete', () => {
     });
   });
 
-  it('refuses to complete one occurrence of an all-day series and writes nothing (tiger-iac#1311)', async () => {
+  it('completes an occurrence of an all-day series with a recurrence override (tiger-iac#1311)', async () => {
     const master = makeTask({
       id: 't-bin',
       due: '2026-09-20',
@@ -229,14 +228,19 @@ describe('task-store recurring toggleTaskComplete', () => {
       due: '2026-09-27',
     };
 
-    await expect(
-      useTaskStore.getState().toggleTaskComplete(mockClient as IJMAPClient, occurrence),
-    ).rejects.toBeInstanceOf(AllDaySeriesOverrideBlockedError);
-    expect(mockClient.updateCalendarTask).not.toHaveBeenCalled();
-    expect(useTaskStore.getState().tasks[0]).toEqual(master);
+    await useTaskStore.getState().toggleTaskComplete(mockClient as IJMAPClient, occurrence);
+
+    expect(mockClient.updateCalendarTask).toHaveBeenCalledWith('t-bin', {
+      recurrenceOverrides: {
+        '2026-09-27T00:00:00': expect.objectContaining({ progress: 'completed' }),
+      },
+    });
+    expect(useTaskStore.getState().tasks[0].recurrenceOverrides?.['2026-09-27T00:00:00']).toMatchObject({
+      progress: 'completed',
+    });
   });
 
-  it('completes the current occurrence of an all-day series by advancing the series, without an override (tiger-iac#1311)', async () => {
+  it('completes the first occurrence of an all-day series with an override when passed as occurrence (tiger-iac#1311)', async () => {
     const master = makeTask({
       id: 't-bin',
       due: '2026-09-20',
@@ -253,8 +257,14 @@ describe('task-store recurring toggleTaskComplete', () => {
 
     await useTaskStore.getState().toggleTaskComplete(mockClient as IJMAPClient, current);
 
-    expect(mockClient.updateCalendarTask).toHaveBeenCalledWith('t-bin', { progress: 'needs-action', due: '2026-09-27T00:00:00' });
-    expect(useTaskStore.getState().tasks[0]).toMatchObject({ due: '2026-09-27T00:00:00', showWithoutTime: true });
+    expect(mockClient.updateCalendarTask).toHaveBeenCalledWith('t-bin', {
+      recurrenceOverrides: {
+        '2026-09-20T00:00:00': expect.objectContaining({ progress: 'completed' }),
+      },
+    });
+    expect(useTaskStore.getState().tasks[0].recurrenceOverrides?.['2026-09-20T00:00:00']).toMatchObject({
+      progress: 'completed',
+    });
   });
 });
 

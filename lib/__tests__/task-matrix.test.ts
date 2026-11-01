@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { executeTaskScopeAction, type TaskStoreOperations, type PendingTaskScopeAction } from '../calendar-task-scope';
 import { groupTasksByDueDay } from '../calendar-tasks';
-import { AllDaySeriesOverrideBlockedError } from '../all-day-series-block';
 import type { CalendarTask } from '@/lib/jmap/types';
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
 import { createRecurrenceRule } from '@/lib/recurrence-rule';
@@ -38,25 +37,6 @@ function createStalwartSimulatingStore(initialTasks: CalendarTask[]): TestStore 
 
         const next: Record<string, unknown> = { ...task };
         const updatesRecord = updates as Record<string, unknown>;
-
-        const willHaveShowWithoutTime = 'showWithoutTime' in updatesRecord
-          ? updatesRecord.showWithoutTime
-          : task.showWithoutTime;
-
-        const overrideEntries = Object.entries(updatesRecord).flatMap(([k, v]) => {
-          if (k.startsWith('recurrenceOverrides/')) return [v];
-          if (k === 'recurrenceOverrides') return Object.values(v as Record<string, unknown>);
-          return [];
-        }) as Record<string, unknown>[];
-        const hasContentOverride = overrideEntries.some((entry) => entry.excluded !== true);
-
-        if (willHaveShowWithoutTime && hasContentOverride) {
-          // Stalwart bug: master is wiped and replaced by override!
-          return {
-            id: task.id,
-            title: 'CORRUPTED_SERIES_WIPED_BY_STALWART',
-          } as unknown as CalendarTask;
-        }
 
         // Apply normal updates and RFC 8620 patch paths
         for (const [k, v] of Object.entries(updatesRecord)) {
@@ -99,8 +79,6 @@ describe('Automated Task Recurrence Matrix (tiger-bulwark A.4a.2)', () => {
     action: PendingTaskScopeAction;
     scope: 'this' | 'this_and_future' | 'all';
     verify: (store: TestStore) => void;
-    /** Refused by the client while Stalwart loses all-day series (tiger-iac#1311). */
-    expectBlocked?: boolean;
   };
 
   const cases: MatrixCase[] = [
@@ -252,7 +230,7 @@ describe('Automated Task Recurrence Matrix (tiger-bulwark A.4a.2)', () => {
 
     // ─── 3. LEGACY ALL-DAY TASKS (Pre-existing on Stalwart with showWithoutTime: true) ───
     {
-      name: 'All-day series: editing a single occurrence ("this") is refused',
+      name: 'All-day series: editing a single occurrence ("this") writes an override',
       customMaster: {
         id: 'legacy-1',
         '@type': 'Task',
@@ -272,12 +250,18 @@ describe('Automated Task Recurrence Matrix (tiger-bulwark A.4a.2)', () => {
         updates: { title: 'Alte Serie Einzeländerung' },
       },
       scope: 'this',
-      expectBlocked: true,
       verify: (store) => {
-        expect(store.patches).toEqual([]);
+        expect(store.tasks[0].title).toBe('Alte Ganztags-Serie');
         expect(store.tasks[0].showWithoutTime).toBe(true);
+        expect(store.patches).toEqual([{
+          recurrenceOverrides: {
+            '2026-10-14T00:00:00': { title: 'Alte Serie Einzeländerung' },
+          },
+        }]);
         const expanded = groupTasksByDueDay(store.tasks, range);
-        expect(expanded.get('2026-10-14')![0].title).toBe('Alte Ganztags-Serie');
+        expect(expanded.get('2026-10-14')![0].title).toBe('Alte Serie Einzeländerung');
+        expect(expanded.get('2026-10-07')![0].title).toBe('Alte Ganztags-Serie');
+        expect(expanded.get('2026-10-21')![0].title).toBe('Alte Ganztags-Serie');
       },
     },
     {
@@ -310,7 +294,7 @@ describe('Automated Task Recurrence Matrix (tiger-bulwark A.4a.2)', () => {
     },
   ];
 
-  it.each(cases)('$name', async ({ fixtureKey, customMaster, occurrenceDate, action, scope, verify, expectBlocked }) => {
+  it.each(cases)('$name', async ({ fixtureKey, customMaster, occurrenceDate, action, scope, verify }) => {
     const rawMaster: CalendarTask = customMaster || (stalwartFixtures as Record<string, unknown>)[fixtureKey!] as CalendarTask;
     const master = normalizeCalendarTask(rawMaster);
     const store = createStalwartSimulatingStore([master]);
@@ -325,12 +309,7 @@ describe('Automated Task Recurrence Matrix (tiger-bulwark A.4a.2)', () => {
     action.task = occurrence;
 
     // Execute the scope action through production code
-    const run = executeTaskScopeAction({} as IJMAPClient, store, action, scope);
-    if (expectBlocked) {
-      await expect(run).rejects.toBeInstanceOf(AllDaySeriesOverrideBlockedError);
-    } else {
-      await run;
-    }
+    await executeTaskScopeAction({} as IJMAPClient, store, action, scope);
 
     // Verify expectations
     verify(store);
