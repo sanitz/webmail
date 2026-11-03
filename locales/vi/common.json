@@ -4526,7 +4526,8 @@
       "delete": "Xóa",
       "rsvp_title": "Phản hồi sự kiện định kỳ",
       "rsvp_description": "Đây là một sự kiện định kỳ. Phản hồi của bạn áp dụng cho những sự kiện nào?",
-      "respond": "Trả lời"
+      "respond": "Trả lời",
+      "single_occurrence_blocked": "Không thể thay đổi sự kiện đơn lẻ trong chuỗi cả ngày lúc này do lỗi máy chủ thư. Bạn vẫn có thể xóa sự kiện đơn lẻ."
     },
     "discard": {
       "title": "Hủy thay đổi?",
@@ -4697,7 +4698,9 @@
       "event_exported": "Đã xuất sự kiện",
       "title_copied": "Đã sao chép tiêu đề",
       "link_copied": "Đã sao chép liên kết",
-      "title_alert": "Nhắc nhở: {title}"
+      "title_alert": "Nhắc nhở: {title}",
+      "single_occurrence_blocked": "Không thể thay đổi sự kiện đơn lẻ trong chuỗi cả ngày lúc này (lỗi máy chủ thư).",
+      "task_error": "Không thể lưu công việc"
     },
     "status": {
       "loading_calendars": "Đang tải lịch…",
@@ -4919,7 +4922,10 @@
       "results": "{count, plural, one {# sự kiện được tìm thấy} other {Đã tìm thấy # sự kiện}}"
     },
     "mini_has_events": "Có sự kiện",
-    "mini_week_number": "Tuần {week}"
+    "mini_week_number": "Tuần {week}",
+    "errors": {
+      "no_writable_calendar_for_event": "Không thể lưu: lịch này không chấp nhận sự kiện."
+    }
   },
   "calendar_event_notifications": {
     "someone": "Ai đó",
