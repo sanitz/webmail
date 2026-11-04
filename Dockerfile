@@ -36,7 +36,7 @@ RUN rm -rf "app/api/dev-jmap" && \
       -prune -exec rm -rf {} \; && \
     node scripts/build-pst-worker.mjs && \
     node scripts/build-plugin-sandbox.mjs && \
-    npx next build --webpack
+    NODE_OPTIONS="--max-old-space-size=4096" npx next build --webpack
 
 # webpack has no debug IDs of its own, so sentry-cli adds them to the
 # chunks; then every map moves to /sourcemaps (exported with
