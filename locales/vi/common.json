@@ -5124,6 +5124,7 @@
       "event_duplicated": "Đã nhân bản sự kiện",
       "event_error": "Không thể lưu sự kiện",
       "task_due": "Công việc đến hạn",
+      "task_error": "Không thể lưu công việc",
       "event_exported": "Đã xuất sự kiện",
       "title_copied": "Đã sao chép tiêu đề",
       "link_copied": "Đã sao chép liên kết",

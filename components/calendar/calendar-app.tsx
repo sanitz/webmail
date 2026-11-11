@@ -135,13 +135,15 @@ import { CalendarPrint, type CalendarPrintContent } from "@/components/calendar/
 import { usePrintListener, usePrinting } from "@/components/print/print-root";
 import { requestPrint, usePrintStore } from "@/stores/print-store";
 import { useCollectionNames } from "@/hooks/use-collection-names";
+import { isRecurringTask, executeTaskScopeAction, type PendingTaskScopeAction } from "@/lib/calendar-task-scope";
 
 // `fromEditor`: asked on the way out of the event editor, which stays open
 // until a scope is picked, so Cancel goes back to it with the changes.
 type PendingScopeAction =
   | { type: "edit"; event: CalendarEvent; updates: Partial<CalendarEvent>; editor?: EventEditorState; sendScheduling?: boolean; fromEditor?: boolean }
   | { type: "delete"; event: CalendarEvent; sendScheduling?: boolean; fromEditor?: boolean }
-  | { type: "rsvp"; event: CalendarEvent; participantId: string; status: CalendarParticipant["participationStatus"]; sentBy?: string };
+  | { type: "rsvp"; event: CalendarEvent; participantId: string; status: CalendarParticipant["participationStatus"]; sentBy?: string }
+  | PendingTaskScopeAction;
 
 /** How long a sideways scroll rests on a day before that day becomes the selection. */
 const VISIBLE_DATE_SETTLE_MS = 300;
@@ -831,10 +833,9 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
 
   const openEditTaskModal = useCallback((task: CalendarTask) => whenEditorsDiscarded(() => {
     closeEventPanelForTask();
-    const master = task.originalId ? taskStore.tasks.find((t) => t.id === task.originalId) || task : task;
-    setEditTask(master);
+    setEditTask(task);
     setShowTaskModal(true);
-  }), [closeEventPanelForTask, whenEditorsDiscarded, taskStore.tasks]);
+  }), [closeEventPanelForTask, whenEditorsDiscarded]);
 
   // A plugin drawing the task view opens a task in the editor
   // (api.ui.openTask), as a click in Bulwark's list does.
@@ -847,6 +848,11 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
 
   const handleToggleTaskComplete = useCallback((task: CalendarTask) => {
     if (!client) return;
+    if (isRecurringTask(task) && !task.recurrenceId && !task.id.includes(':')) {
+      const newProgress = task.progress === 'completed' ? 'needs-action' : 'completed';
+      setPendingScopeAction({ type: "edit_task", task, updates: { progress: newProgress } });
+      return;
+    }
     // The checkbox shows the result; only a failure needs saying.
     toggleTaskCompleteFn(client, task).catch((error: unknown) => {
       toast.error(describeError(error, t("notifications.task_update_error")));
@@ -857,6 +863,12 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
   // form stays open with what was typed.
   const handleSaveTask = useCallback(async (data: Partial<import("@/lib/jmap/types").CalendarTask>) => {
     if (!client) return false;
+    if (editTask && isRecurringTask(editTask)) {
+      setPendingScopeAction({ type: "edit_task", task: editTask, updates: data });
+      setShowTaskModal(false);
+      setEditTask(null);
+      return true;
+    }
     let saved: boolean;
     try {
       saved = editTask
@@ -876,10 +888,16 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
   // A task delete can't be taken back: ask first (R3), then say how it went.
   const handleDeleteTask = useCallback(async (id: string) => {
     if (!client) return;
-    const task = taskStore.tasks.find((x) => x.id === id);
+    const taskToDelete = editTask || taskStore.tasks.find((x) => x.id === id);
+    if (taskToDelete && isRecurringTask(taskToDelete)) {
+      setPendingScopeAction({ type: "delete_task", task: taskToDelete });
+      setShowTaskModal(false);
+      setEditTask(null);
+      return;
+    }
     const ok = await confirmAction({
       title: t("delete_dialog.task_title"),
-      message: t("delete_dialog.task_message", { title: task?.title || t("tasks.no_title") }),
+      message: t("delete_dialog.task_message", { title: taskToDelete?.title || t("tasks.no_title") }),
       confirmText: t("delete_dialog.confirm"),
       variant: "destructive",
     });
@@ -894,7 +912,7 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
     toast.success(t("notifications.task_deleted"));
     setShowTaskModal(false);
     setEditTask(null);
-  }, [client, taskStore, confirmAction, describeError, t]);
+  }, [client, editTask, taskStore, confirmAction, describeError, t]);
 
   // Del and the list's right-click Delete (pim-p3-10): at once, with Undo instead of a
   // question, as Mail does. Undo makes the task again from what it held.
@@ -1563,6 +1581,18 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
       const { event, participantId, status, sentBy } = pendingScopeAction;
       setPendingScopeAction(null);
       await submitRsvp(event.id, participantId, status, scope === "this" ? "occurrence" : "series", sentBy);
+      return;
+    }
+    if (pendingScopeAction.type === "edit_task" || pendingScopeAction.type === "delete_task") {
+      const action = pendingScopeAction;
+      setPendingScopeAction(null);
+      try {
+        await executeTaskScopeAction(client, taskStore, action, scope);
+        toast.success(action.type === "delete_task" ? t("notifications.event_deleted") : t("notifications.event_updated"));
+      } catch (err) {
+        debug.error("Failed to execute task scope action:", err);
+        toast.error(t("notifications.event_error"));
+      }
       return;
     }
     const { type, event, sendScheduling, fromEditor } = pendingScopeAction;
@@ -2854,12 +2884,22 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
       {renderWebcalAccountPicker()}
       <RecurrenceScopeDialog
         isOpen={!!pendingScopeAction}
-        actionType={pendingScopeAction?.type || "edit"}
+        actionType={
+          pendingScopeAction?.type === "delete" || pendingScopeAction?.type === "delete_task"
+            ? "delete"
+            : pendingScopeAction?.type === "rsvp"
+            ? "rsvp"
+            : "edit"
+        }
         note={pendingScopeAction?.type === "delete" && pendingScopeAction.sendScheduling
           && userOrganizes(pendingScopeAction.event, userEmailsFor(pendingScopeAction.event))
           ? t("participants.cancel_notification")
           : undefined}
-        eventTitle={pendingScopeAction?.event.title || t("events.no_title")}
+        eventTitle={
+          pendingScopeAction?.type === "edit_task" || pendingScopeAction?.type === "delete_task"
+            ? pendingScopeAction.task.title || t("tasks.no_title")
+            : (pendingScopeAction as { event?: CalendarEvent })?.event?.title || t("events.no_title")
+        }
         onSelect={handleScopeSelect}
         onClose={() => setPendingScopeAction(null)}
       />

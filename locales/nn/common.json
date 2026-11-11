@@ -5120,6 +5120,7 @@
       "event_duplicated": "Hending dupliserd",
       "event_error": "Klarte ikkje lagre hendinga",
       "task_due": "Oppgåve forfell",
+      "task_error": "Klarte ikkje lagre oppgåva",
       "event_exported": "Hending eksportert",
       "title_copied": "Tittel kopiert",
       "link_copied": "Lenkje kopiert",

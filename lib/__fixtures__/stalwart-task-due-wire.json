@@ -1,0 +1,47 @@
+{
+  "_source": "Stalwart v0.16.24 (production digest ec011be2), local throwaway server, 2026-10-01. JMAP write, then JMAP get and CalDAV GET of the stored iCalendar (tiger-iac#1323).",
+  "allDayTaskDue": [
+    {
+      "write": { "method": "update", "patch": { "due": "2026-10-14" } },
+      "jmapAfter": { "due": "2026-10-14", "showWithoutTime": true },
+      "icalDue": null
+    },
+    {
+      "write": { "method": "update", "patch": { "due": "2026-10-14T00:00:00" } },
+      "jmapAfter": { "due": "2026-10-14T00:00:00", "showWithoutTime": true },
+      "icalDue": "DUE;VALUE=DATE:20261014"
+    },
+    {
+      "write": { "method": "create", "patch": { "due": "2026-10-07", "showWithoutTime": true } },
+      "jmapAfter": { "due": "2026-10-07", "showWithoutTime": true },
+      "icalDue": null
+    },
+    {
+      "write": { "method": "caldav-put", "ical": "DUE;VALUE=DATE:20261020" },
+      "jmapAfter": { "due": "2026-10-20T00:00:00", "showWithoutTime": true },
+      "icalDue": "DUE;VALUE=DATE:20261020"
+    }
+  ],
+  "seriesSplit": {
+    "_note": "Timed weekly task with a completed override on 2026-10-21, truncated with until before 2026-10-14.",
+    "truncateOnly": {
+      "patch": { "recurrenceRule": { "frequency": "weekly", "until": "2026-10-14T08:59:59" } },
+      "jmapAfter": {
+        "due": "2026-10-07T09:00:00",
+        "recurrenceRule": { "frequency": "weekly", "until": "2026-10-14T08:59:59" },
+        "recurrenceOverrides": { "2026-10-21T09:00:00": { "progress": "completed" } }
+      }
+    },
+    "truncateAndDropFutureOverride": {
+      "patch": {
+        "recurrenceRule": { "frequency": "weekly", "until": "2026-10-14T08:59:59" },
+        "recurrenceOverrides/2026-10-21T09:00:00": null
+      },
+      "jmapAfter": {
+        "due": "2026-10-07T09:00:00",
+        "recurrenceRule": { "frequency": "weekly", "until": "2026-10-14T08:59:59" },
+        "recurrenceOverrides": { "2026-10-07T09:00:00": { "title": "early" } }
+      }
+    }
+  }
+}
