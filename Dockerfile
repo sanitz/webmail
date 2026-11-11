@@ -48,7 +48,7 @@ RUN rm -rf "app/api/dev-jmap" && \
     node scripts/build-pst-worker.mjs && \
     node scripts/build-store-worker.mjs && \
     node scripts/build-plugin-sandbox.mjs && \
-    npx next build --webpack && \
+    NODE_OPTIONS="--max-old-space-size=4096" npx next build --webpack && \
     node scripts/standalone-guard.mjs
 
 # webpack has no debug IDs of its own, so sentry-cli adds them to the
