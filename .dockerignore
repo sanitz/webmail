@@ -37,6 +37,8 @@ examples/
 **/*.test.ts
 **/*.test.tsx
 integration/
+# Fork E2E specs (tiger-iac#1754): they import integration/ helpers and never ship
+e2e-fork/
 repos/
 # Runtime state of a checkout that has been run (admin password hash,
 # plugin signing key, audit log, synced settings) - never part of an image
