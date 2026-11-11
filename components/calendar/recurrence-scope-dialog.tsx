@@ -57,7 +57,7 @@ export function RecurrenceScopeDialog({
     { value: "all", label: t("all_events") },
   ];
   // The choice outlives the dialog closing; fall back when it is not offered.
-  const choice = options.some((option) => option.value === selected) ? selected : "this";
+  const choice = options.some((option) => option.value === selected) ? selected : options[0].value;
 
   return (
     <ModalWindow title={isDelete ? t("delete_question") : isRsvp ? t("rsvp_title") : t("edit_title")} onClose={onClose}>

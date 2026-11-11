@@ -5394,6 +5394,7 @@
       "event_duplicated": "Evento duplicado",
       "event_error": "Não foi possível salvar o evento",
       "task_due": "Tarefa vencendo",
+      "task_error": "Não foi possível guardar a tarefa",
       "event_exported": "Evento exportado",
       "title_copied": "Título copiado",
       "link_copied": "Link copiado",

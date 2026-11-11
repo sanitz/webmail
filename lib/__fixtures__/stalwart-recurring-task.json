@@ -1,0 +1,48 @@
+{
+  "timedTask": {
+    "id": "r0p",
+    "@type": "Task",
+    "title": "Wöchentliche Team-Aufgabe",
+    "due": "2026-10-07T09:00:00",
+    "showWithoutTime": false,
+    "recurrenceRule": {
+      "frequency": "weekly"
+    },
+    "recurrenceOverrides": {
+      "2026-10-14T09:00:00": {
+        "title": "Geänderte Einzelinstanz (verschoben/umbenannt)",
+        "updated": "2026-09-29T23:00:39Z"
+      },
+      "2026-10-21T09:00:00": {
+        "progress": "completed",
+        "updated": "2026-09-29T23:05:00Z"
+      }
+    },
+    "calendarIds": {
+      "cal-tasks": true
+    }
+  },
+  "allDayTask": {
+    "id": "r0t",
+    "@type": "Task",
+    "title": "Wöchentliche Ganztags-Aufgabe",
+    "due": "2026-10-07T00:00:00",
+    "showWithoutTime": false,
+    "recurrenceRule": {
+      "frequency": "weekly"
+    },
+    "recurrenceOverrides": {
+      "2026-10-14T00:00:00": {
+        "title": "Geänderte Ganztags-Instanz",
+        "updated": "2026-09-29T23:01:57Z"
+      },
+      "2026-10-21T00:00:00": {
+        "progress": "completed",
+        "updated": "2026-09-29T23:06:00Z"
+      }
+    },
+    "calendarIds": {
+      "cal-tasks": true
+    }
+  }
+}
