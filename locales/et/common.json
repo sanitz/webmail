@@ -5140,6 +5140,7 @@
       "event_duplicated": "Sündmus dubleeritud",
       "event_error": "Sündmuse salvestamine ebaõnnestus",
       "task_due": "Ülesande tähtaeg",
+      "task_error": "Ülesannet ei õnnestunud salvestada",
       "event_exported": "Sündmus eksporditud",
       "title_copied": "Pealkiri kopeeritud",
       "link_copied": "Link kopeeritud",

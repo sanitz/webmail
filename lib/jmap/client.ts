@@ -814,17 +814,17 @@ const TASK_PROGRESS_NORMALIZATION = new Map<string, CalendarTask['progress']>([
   ['canceled', 'cancelled'],
 ]);
 
-function normalizeCalendarTask(raw: CalendarTask): CalendarTask {
+export function normalizeCalendarTask(task: CalendarTask): CalendarTask {
   // Stalwart names the rule recurrenceRule (one object); the task list and
   // the calendar read recurrenceRules, as for events.
-  const task = normalizeStalwartPropertyNames(raw as unknown as Partial<CalendarEvent>) as unknown as CalendarTask;
-  const progress = task.progress as unknown;
-  if (typeof progress !== 'string') return task;
+  const withNormalizedNames = normalizeStalwartPropertyNames(task as unknown as Record<string, unknown>) as unknown as CalendarTask;
+  const progress = withNormalizedNames.progress as unknown;
+  if (typeof progress !== 'string') return withNormalizedNames;
 
   const normalizedProgress = TASK_PROGRESS_NORMALIZATION.get(progress.toLowerCase());
   return normalizedProgress === undefined
-    ? task
-    : { ...task, progress: normalizedProgress };
+    ? withNormalizedNames
+    : { ...withNormalizedNames, progress: normalizedProgress };
 }
 
 /**
