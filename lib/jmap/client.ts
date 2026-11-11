@@ -860,6 +860,21 @@ function completeBareTaskDates<T extends Partial<CalendarTask>>(task: T): T {
 }
 
 /**
+ * An RRULE needs a DTSTART (RFC 5545), and Stalwart drops a task's
+ * recurrenceRule without a `start`, silently. A recurring task the form
+ * sends with a due only starts at that due.
+ */
+function anchorRecurringTaskStart<T extends Partial<CalendarTask>>(task: T): T {
+  if (!task.recurrenceRules?.length || task.start || !task.due) return task;
+  return { ...task, start: task.due };
+}
+
+/** A task as Stalwart keeps it: dates as LocalDateTimes, a series with a start. */
+function prepareTaskDates<T extends Partial<CalendarTask>>(task: T): T {
+  return anchorRecurringTaskStart(completeBareTaskDates(task));
+}
+
+/**
  * Stalwart's calcard crate uses singular property names ("recurrenceRule")
  * instead of the RFC 8984 plural forms ("recurrenceRules").
  * JSCalendar 2.0 (jscalendarbis-15) defines recurrenceRule as a single object,
@@ -10494,7 +10509,8 @@ export class JMAPClient implements IJMAPClient {
       accountId = resolved.accountId;
       taskData.calendarIds = resolved.calendarIds;
     }
-    const cleanTask = { ...completeBareTaskDates(taskData), '@type': 'Task', uid: taskData.uid || generateUUID() };
+    const cleanTask = { ...prepareTaskDates(taskData), '@type': 'Task', uid: taskData.uid || generateUUID() };
+    cleanRecurrenceRules(cleanTask as unknown as Record<string, unknown>);
 
     debug.group('CalendarTask/create', 'tasks');
     debug.log('tasks', 'CalendarTask/create accountId', accountId);
@@ -10574,7 +10590,7 @@ export class JMAPClient implements IJMAPClient {
    */
   async updateCalendarTask(taskId: string, updates: Partial<CalendarTask>, targetAccountId?: string): Promise<string> {
     const source = targetAccountId ? { accountId: targetAccountId, id: taskId } : this.splitCalendarObjectId(taskId);
-    let patch = completeBareTaskDates(updates);
+    let patch = prepareTaskDates(updates);
     if (!targetAccountId && patch.calendarIds) {
       const dest = this.resolveTaskCalendarIds(patch.calendarIds);
       patch = { ...patch, calendarIds: dest.calendarIds };
