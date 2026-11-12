@@ -21,8 +21,10 @@ never stores and drops others silently.
 Covered: task-only lists (made over CalDAV, empty, never an event target, one
 tick for grid and tasks view), weekly series (rule, start and due on the server
 and in the iCalendar, occurrences on the grid), ticking off one occurrence, the
-three scopes and a split without duplicates.
+three scopes and a split without duplicates; ticking off a task in a calendar
+shared with the login and a series of a second login (scope dialog).
 
 Not covered: mail, contacts, files, other upstream features; looks; real
-CalDAV clients; production (Caddy, OIDC, CORS); several logins, shared
-calendars, phone layout, other browsers and time zones.
+CalDAV clients; production (Caddy, OIDC, CORS); editing in shared calendars
+and second logins beyond ticking off; phone layout, other browsers and time
+zones.
