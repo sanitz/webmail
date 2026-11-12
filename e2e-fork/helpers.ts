@@ -52,27 +52,53 @@ export async function icsOfCalendar(account: TestAccount, slug: string): Promise
   }));
 }
 
-/** CalendarEvent/get of the account's tasks, with the given properties. */
-export async function tasksOnServer(account: TestAccount, properties: string[]): Promise<Record<string, unknown>[]> {
+async function calendarsAccountId(account: TestAccount): Promise<string> {
   const session = await (await fetch(`${JMAP_URL}/jmap/session`, { headers: { Authorization: auth(account) } })).json();
-  const accountId = session.primaryAccounts[CALENDARS];
+  return session.primaryAccounts[CALENDARS];
+}
+
+/** One JMAP calendars method call as `account`; its result. */
+async function calendarsCall(account: TestAccount, method: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
   const res = await fetch(`${JMAP_URL}/jmap/`, {
     method: 'POST',
     headers: { Authorization: auth(account), 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      using: ['urn:ietf:params:jmap:core', CALENDARS],
-      methodCalls: [['CalendarEvent/get', { accountId, ids: null, properties: ['@type', ...properties] }, '0']],
-    }),
+    body: JSON.stringify({ using: ['urn:ietf:params:jmap:core', CALENDARS], methodCalls: [[method, args, '0']] }),
   });
-  const body = await res.json();
-  const list = (body.methodResponses?.[0]?.[1]?.list ?? []) as Record<string, unknown>[];
-  return list.filter((item) => item['@type'] === 'Task');
+  const [name, result] = (await res.json()).methodResponses?.[0] ?? [];
+  if (name !== method) throw new Error(`${method}: ${JSON.stringify(result)}`);
+  return result;
 }
 
-/** An all-day task as a phone stores it: PUT of a VTODO with a DUE date. */
-export async function putTaskOverCalDav(account: TestAccount, slug: string, uid: string, title: string, due: string): Promise<void> {
+/** CalendarEvent/get of the account's tasks, with the given properties. */
+export async function tasksOnServer(account: TestAccount, properties: string[]): Promise<Record<string, unknown>[]> {
+  const accountId = await calendarsAccountId(account);
+  const result = await calendarsCall(account, 'CalendarEvent/get', { accountId, ids: null, properties: ['@type', ...properties] });
+  return ((result.list ?? []) as Record<string, unknown>[]).filter((item) => item['@type'] === 'Task');
+}
+
+/** The owner shares the calendar of that name with the grantee, to read and write. */
+export async function shareCalendar(owner: TestAccount, name: string, grantee: TestAccount): Promise<void> {
+  const accountId = await calendarsAccountId(owner);
+  const { list } = await calendarsCall(owner, 'Calendar/get', { accountId, properties: ['name'] });
+  const calendar = (list as { id: string; name: string }[]).find((c) => c.name === name);
+  if (!calendar) throw new Error(`no calendar "${name}"`);
+  const rights = { mayReadFreeBusy: true, mayReadItems: true, mayWriteAll: true, mayWriteOwn: true, mayUpdatePrivate: true, mayRSVP: true };
+  const result = await calendarsCall(owner, 'Calendar/set', {
+    accountId, update: { [calendar.id]: { shareWith: { [await calendarsAccountId(grantee)]: rights } } },
+  });
+  // Stalwart answers updated: { <id>: null }: the key counts, not its value.
+  if (!(calendar.id in ((result.updated ?? {}) as Record<string, unknown>))) throw new Error(`share "${name}": ${JSON.stringify(result)}`);
+}
+
+/**
+ * An all-day task as a phone stores it: PUT of a VTODO with a DUE date. With
+ * `rrule` it repeats; a rule needs DTSTART, so the start is the due date.
+ */
+export async function putTaskOverCalDav(account: TestAccount, slug: string, uid: string, title: string, due: string, rrule?: string): Promise<void> {
+  const day = due.replaceAll('-', '');
+  const repeat = rrule ? [`DTSTART;VALUE=DATE:${day}`, `RRULE:${rrule}`] : [];
   const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//tiger-iac//e2e//EN', 'BEGIN:VTODO', `UID:${uid}`,
-    `DTSTAMP:20260101T000000Z`, `SUMMARY:${title}`, `DUE;VALUE=DATE:${due.replaceAll('-', '')}`, 'STATUS:NEEDS-ACTION',
+    `DTSTAMP:20260101T000000Z`, `SUMMARY:${title}`, ...repeat, `DUE;VALUE=DATE:${day}`, 'STATUS:NEEDS-ACTION',
     'END:VTODO', 'END:VCALENDAR', ''].join('\r\n');
   const res = await fetch(`${calendarHome(account)}${slug}/${uid}.ics`, {
     method: 'PUT',
