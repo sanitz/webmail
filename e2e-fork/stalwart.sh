@@ -9,7 +9,7 @@
 #   e2e-fork/stalwart.sh down   stop and remove
 set -euo pipefail
 
-STALWART_IMAGE="${STALWART_IMAGE:-docker.io/stalwartlabs/stalwart:v1.0.3@sha256:e01129152d3684a6350feae33a3c4fc852538ec5fcdbd1ca8de3cb7e493b68d6}"
+STALWART_IMAGE="${STALWART_IMAGE:-docker.io/stalwartlabs/stalwart:v1.1.0@sha256:0aacd114054f56c34e98063140e2102a04dc0bcb4933ff08925cf8e9938b0d16}"
 # The stalwart-cli production uses (tiger-iac stalwart_cli_image); upstream's
 # default 1.0.6 cannot read the schema of server 1.0.3.
 export STALWART_CLI_VERSION="${STALWART_CLI_VERSION:-1.0.14}"
