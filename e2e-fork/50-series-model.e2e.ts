@@ -6,8 +6,8 @@ import { login, openCalendar } from '../integration/tests/helpers/app';
 import { createTaskListOverCalDav, icsOfCalendar, putVtodoOverCalDav, tasksOnServer } from './helpers';
 import { chooseScope, createWeeklyTask, gridTitle, showWeekOf, switchView } from './ui';
 
-// How the fork's scope handling stores a series, read back from Stalwart
-// as JMAP and as the iCalendar a phone gets (tiger-iac#1807–#1811).
+// How the fork's scope handling and task form store a series, read back from
+// Stalwart as JMAP and as the iCalendar a phone gets (tiger-iac#1799, #1807–#1811).
 const { alice } = ACCOUNTS;
 const ymd = (d: Date) => format(d, 'yyyy-MM-dd');
 const compact = (d: Date) => format(d, 'yyyyMMdd');
@@ -106,4 +106,31 @@ test('splitting a series keeps its reminder and categories (#1808)', async ({ pa
     if (!series) return 'no new series';
     return { alerts: Object.keys((series.alerts ?? {}) as object).length, keywords: Object.keys((series.keywords ?? {}) as object) };
   }).toEqual({ alerts: 1, keywords: ['Haushalt'] });
+});
+
+test('making a task that starts before its due repeat keeps the start (#1799)', async ({ page }) => {
+  const stamp = Date.now();
+  const slug = `start-${stamp}`;
+  const title = `E2E start ${stamp}`;
+  const d0 = nextTuesday(new Date());
+  const due = addDays(d0, 2);
+  await createTaskListOverCalDav(alice, slug, `E2E Start ${stamp}`);
+  // A phone's task with its own start: no series yet, so the form's whole payload reaches the client.
+  await putVtodoOverCalDav(alice, slug, `start-${stamp}`, [
+    `SUMMARY:${title}`, `DTSTART;VALUE=DATE:${compact(d0)}`, `DUE;VALUE=DATE:${compact(due)}`,
+  ]);
+
+  await login(page, alice);
+  await openCalendar(page);
+  await switchView(page, 'Week');
+  await editOccurrence(page, title, due, async (form) => {
+    await form.getByRole('combobox', { name: 'Recurrence' }).selectOption({ label: 'Weekly' });
+  });
+
+  // The form sends the rule and the due date but no start: the client must not make one up from the due date.
+  await expect.poll(async () => {
+    const task = (await tasksOnServer(alice, ['title', 'start', 'due', 'recurrenceRule'])).find((t) => t.title === title);
+    const rule = task?.recurrenceRule as { frequency?: string } | undefined;
+    return [rule?.frequency, String(task?.start).slice(0, 10), String(task?.due).slice(0, 10)];
+  }).toEqual(['weekly', ymd(d0), ymd(due)]);
 });
