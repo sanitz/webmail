@@ -69,6 +69,22 @@ async function calendarsCall(account: TestAccount, method: string, args: Record<
   return result;
 }
 
+/**
+ * A VTODO as a phone stores it, from its property lines (DTSTART, DUE, RRULE,
+ * CATEGORIES, …); `alarm` adds a VALARM with these lines.
+ */
+export async function putVtodoOverCalDav(account: TestAccount, slug: string, uid: string, lines: string[], alarm?: string[]): Promise<void> {
+  const valarm = alarm ? ['BEGIN:VALARM', ...alarm, 'END:VALARM'] : [];
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//tiger-iac//e2e//EN', 'BEGIN:VTODO', `UID:${uid}`,
+    'DTSTAMP:20260101T000000Z', ...lines, 'STATUS:NEEDS-ACTION', ...valarm, 'END:VTODO', 'END:VCALENDAR', ''].join('\r\n');
+  const res = await fetch(`${calendarHome(account)}${slug}/${uid}.ics`, {
+    method: 'PUT',
+    headers: { Authorization: auth(account), 'Content-Type': 'text/calendar; charset=utf-8' },
+    body: ics,
+  });
+  if (res.status !== 201) throw new Error(`PUT ${uid}: ${res.status} ${await res.text()}`);
+}
+
 /** CalendarEvent/get of the account's tasks, with the given properties. */
 export async function tasksOnServer(account: TestAccount, properties: string[]): Promise<Record<string, unknown>[]> {
   const accountId = await calendarsAccountId(account);
