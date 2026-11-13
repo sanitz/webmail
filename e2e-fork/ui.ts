@@ -59,9 +59,13 @@ export async function showWeekOf(page: Page, day: Date): Promise<void> {
   }, { message: `the week view shows ${label}` }).toBe(true);
 }
 
-/** Picks the task list in the task form, when it offers a choice. */
-async function chooseTaskList(form: Locator, name: string): Promise<void> {
-  const picker = form.getByRole('combobox', { name: /task list/i });
+/**
+ * Picks the task list in the task form, when it offers a choice (labelled
+ * "List"; it was looked up as "task list" and silently skipped, so every
+ * task went to the first list).
+ */
+export async function chooseTaskList(form: Locator, name: string): Promise<void> {
+  const picker = form.getByRole('combobox', { name: /^(task )?list$/i });
   if (await picker.count() === 0) return;
   if (await picker.evaluate((el) => el.tagName === 'SELECT')) {
     await picker.selectOption({ label: name });
