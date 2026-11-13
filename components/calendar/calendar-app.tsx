@@ -850,12 +850,9 @@ export function CalendarApp({ linkSegments: routeSegments }: CalendarAppProps = 
 
   const handleToggleTaskComplete = useCallback((task: CalendarTask) => {
     if (!client) return;
-    if (isRecurringTask(task) && !task.recurrenceId) {
-      const newProgress = task.progress === 'completed' ? 'needs-action' : 'completed';
-      setPendingScopeAction({ type: "edit_task", task, updates: { progress: newProgress } });
-      return;
-    }
-    // The checkbox shows the result; only a failure needs saying.
+    // A tick on a series completes one occurrence, the same in the list and
+    // the grid (tiger-iac#1812): nothing to ask. The checkbox shows the
+    // result; only a failure needs saying.
     toggleTaskCompleteFn(client, task).catch((error: unknown) => {
       toast.error(describeError(error, t("notifications.task_update_error")));
     });

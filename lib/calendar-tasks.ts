@@ -149,6 +149,16 @@ export function nextOpenOccurrence(series: CalendarTask): CalendarTask | null {
 }
 
 /**
+ * A series as the task list shows it: the occurrence a tick completes, its
+ * first open one, under the series' id, so selecting and deleting it still
+ * mean the series. Other tasks, and series with nothing open, as they are.
+ */
+export function asListedTask(task: CalendarTask): CalendarTask {
+  const open = nextOpenOccurrence(task);
+  return open ? { ...open, id: task.id } : task;
+}
+
+/**
  * JMAP patch setting one override on the master: a patch path into an existing
  * recurrenceOverrides map, the whole map when there is none yet.
  */

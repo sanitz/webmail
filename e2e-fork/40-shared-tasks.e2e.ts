@@ -20,6 +20,13 @@ function tick(page: Page, title: string) {
 
 const scopeDialog = (page: Page) => page.getByRole('dialog', { name: /recurring/i });
 
+/** Progress of the series and of its overrides, in the account that has it. */
+async function seriesState(owner: typeof alice, title: string) {
+  const series = (await tasksOnServer(owner, ['title', 'progress', 'recurrenceOverrides'])).find((t) => t.title === title);
+  const overrides = (series?.recurrenceOverrides ?? {}) as Record<string, Record<string, unknown>>;
+  return { progress: series?.progress, overrides: Object.entries(overrides).map(([key, entry]) => [key.slice(0, 10), entry.progress]) };
+}
+
 async function sharedList(stamp: number): Promise<string> {
   const list = `E2E Shared ${stamp}`;
   await createTaskListOverCalDav(alice, `shared-${stamp}`, list);
@@ -42,7 +49,9 @@ test('ticks off a task in a calendar shared with me, in the sharer\'s account', 
     .toBe('completed');
 });
 
-test('asks which occurrences when ticking off a series shared with me', async ({ page }) => {
+// A tick on a series completes its first open occurrence (tiger-iac#1812),
+// in the account the series lives in.
+test('ticks off the first occurrence of a series shared with me, in the sharer\'s account', async ({ page }) => {
   const stamp = Date.now();
   const title = `E2E shared series ${stamp}`;
   await sharedList(stamp);
@@ -53,10 +62,11 @@ test('asks which occurrences when ticking off a series shared with me', async ({
   await openTasksView(page);
   await tick(page, title).click();
 
-  await expect(scopeDialog(page)).toBeVisible();
+  await expect(scopeDialog(page)).toBeHidden();
+  await expect.poll(() => seriesState(alice, title)).toEqual({ progress: 'needs-action', overrides: [[due, 'completed']] });
 });
 
-test('asks which occurrences when ticking off a series of a second login', async ({ page }) => {
+test('ticks off the first occurrence of a series of a second login, in that login\'s account', async ({ page }) => {
   const stamp = Date.now();
   const list = `E2E Bob ${stamp}`;
   const title = `E2E second login series ${stamp}`;
@@ -70,5 +80,6 @@ test('asks which occurrences when ticking off a series of a second login', async
   await openTasksView(page);
   await tick(page, title).click();
 
-  await expect(scopeDialog(page)).toBeVisible();
+  await expect(scopeDialog(page)).toBeHidden();
+  await expect.poll(() => seriesState(bob, title)).toEqual({ progress: 'needs-action', overrides: [[due, 'completed']] });
 });
