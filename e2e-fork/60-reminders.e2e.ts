@@ -32,7 +32,7 @@ test('a reminder made in the task form fires relative to the due date (#1814)', 
   await expect(form).toBeHidden();
 
   await expect.poll(async () => {
-    const ics = (await icsOfCalendar(alice, slug)).find((body) => body.includes(`SUMMARY:${title}`)) ?? '';
+    const ics = (await icsOfCalendar(alice, slug)).find((body) => body.split(/\r?\n/).includes(`SUMMARY:${title}`)) ?? '';
     return ics.match(/TRIGGER[^\r\n]*/)?.[0] ?? `no trigger in: ${ics.slice(0, 200)}`;
   }).toMatch(/^TRIGGER;RELATED=END:-PT15M$/);
 });

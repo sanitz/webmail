@@ -14,7 +14,7 @@ const compact = (d: Date) => format(d, 'yyyyMMdd');
 
 /** The VTODO of that title in the list's stored iCalendar. */
 async function vtodo(slug: string, title: string): Promise<string> {
-  return (await icsOfCalendar(alice, slug)).find((body) => body.includes(`SUMMARY:${title}`)) ?? '';
+  return (await icsOfCalendar(alice, slug)).find((body) => body.split(/\r?\n/).includes(`SUMMARY:${title}`)) ?? '';
 }
 
 /** Opens the occurrence on `day`, edits it in the task form and saves. */
