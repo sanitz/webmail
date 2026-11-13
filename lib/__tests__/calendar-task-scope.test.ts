@@ -110,6 +110,30 @@ describe('calendar-task-scope', () => {
       expect(store.updateTask).toHaveBeenCalledWith(dummyClient, 'acct-2:master-task-1', { title: 'Shared Run' });
     });
 
+    it('moves the start with the due date of the whole series, keeping their distance (tiger-iac#1807)', async () => {
+      const master = makeTask({ start: '2026-09-29T08:00:00', due: '2026-10-01T08:00:00' });
+      const occurrence: CalendarTask = { ...master, id: 'master-task-1:2026-10-08T08:00:00', seriesId: 'master-task-1', recurrenceId: '2026-10-08T08:00:00', due: '2026-10-08T08:00:00' };
+      const store = createMockStore([master]);
+
+      await executeTaskScopeAction(dummyClient, store, { type: 'edit_task', task: occurrence, updates: { due: '2026-10-10T08:00:00' } }, 'all');
+
+      expect(store.updateTask).toHaveBeenCalledWith(dummyClient, 'master-task-1', { due: '2026-10-03T08:00:00', start: '2026-10-01T08:00:00' });
+    });
+
+    it('splits off a series with everything the old one has, start at the same distance (tiger-iac#1808)', async () => {
+      const alerts = { a1: { '@type': 'Alert', trigger: { '@type': 'OffsetTrigger', offset: '-PT15M', relativeTo: 'end' } } } as unknown as CalendarTask['alerts'];
+      const master = makeTask({ start: '2026-09-29T08:00:00', due: '2026-10-01T08:00:00', alerts, keywords: { Haushalt: true }, color: 'red' });
+      const occurrence: CalendarTask = { ...master, id: 'master-task-1:2026-10-08T08:00:00', seriesId: 'master-task-1', recurrenceId: '2026-10-08T08:00:00', due: '2026-10-08T08:00:00' };
+      const store = createMockStore([master]);
+
+      await executeTaskScopeAction(dummyClient, store, { type: 'edit_task', task: occurrence, updates: { title: 'Evening Jog' } }, 'this_and_future');
+
+      const created = vi.mocked(store.createTask).mock.calls[0][1];
+      expect(created).toMatchObject({ title: 'Evening Jog', alerts, keywords: { Haushalt: true }, color: 'red', due: '2026-10-08T08:00:00', start: '2026-10-06T08:00:00' });
+      expect(created).not.toHaveProperty('id');
+      expect(created).not.toHaveProperty('uid');
+    });
+
     it('truncates master recurrence and creates new series when scope is "this_and_future"', async () => {
       const master = makeTask();
       const occurrence: CalendarTask = {

@@ -1,6 +1,6 @@
 import { format, parseISO } from "date-fns";
 import type { CalendarTask } from "@/lib/jmap/types";
-import { findTaskOverride, occurrenceRecurrenceId, overridePatch, taskRecurrenceId, taskSeriesId } from "@/lib/calendar-tasks";
+import { applyLocalShift, findTaskOverride, localShift, occurrenceRecurrenceId, overridePatch, taskRecurrenceId, taskSeriesId, type LocalShift } from "@/lib/calendar-tasks";
 import type { IJMAPClient } from "@/lib/jmap/client-interface";
 import type { RecurrenceEditScope } from "@/components/calendar/recurrence-scope-dialog";
 import { generateDates } from "@/lib/recurrence-expansion";
@@ -48,6 +48,26 @@ const OCCURRENCE_DROPPED_KEYS = new Set([
 type TaskOverrides = NonNullable<CalendarTask["recurrenceOverrides"]>;
 
 /**
+ * Fields a split-off series must not copy from the old one: its identity,
+ * what the server sets, the overrides (carried separately) and the start,
+ * which follows the new due date.
+ */
+const SERIES_COPY_DROPPED_KEYS = new Set([
+  'id', 'uid', 'created', 'updated', 'sequence', 'blobId', 'isDraft', 'isOrigin',
+  'baseEventId', 'originalId', 'seriesId', 'recurrenceId', 'recurrenceIdTimeZone',
+  'recurrenceOverrides', 'utcStart', 'utcEnd', 'accountId', 'accountName',
+  'localAccountId', 'isShared', 'progressUpdated', 'start',
+]);
+
+/** The series' start at the same distance before `due` as before, or none. */
+function startKeepingOffset(series: Pick<CalendarTask, "start" | "due">, due: string | null | undefined): Partial<CalendarTask> {
+  if (!series.start || !series.due || !due) return {};
+  return { start: applyLocalShift(series.start, localShift(series.due, due)) };
+}
+
+const NO_SHIFT: LocalShift = { days: 0, minutes: 0 };
+
+/**
  * Ends the series just before `occurrenceDate`. Overrides from that day on are
  * removed in the same patch and returned, so the new series can take them
  * over: RFC 8984 shows an override without a matching rule date as an extra
@@ -58,11 +78,17 @@ type TaskOverrides = NonNullable<CalendarTask["recurrenceOverrides"]>;
 function truncateSeries(master: CalendarTask, occurrenceDate: string) {
   const splitAt = parseISO(occurrenceDate);
   const untilDate = new Date(splitAt);
-  untilDate.setSeconds(untilDate.getSeconds() - 1);
-  const until = format(untilDate, "yyyy-MM-dd'T'HH:mm:ss");
+  // UNTIL takes the value type of DTSTART (RFC 5545 §3.3.10): an all-day
+  // series ends on the day before, at midnight, which Stalwart writes as a
+  // DATE; one with a time ends a second before (tiger-iac#1811).
+  if (master.showWithoutTime) untilDate.setDate(untilDate.getDate() - 1);
+  else untilDate.setSeconds(untilDate.getSeconds() - 1);
+  const until = format(untilDate, master.showWithoutTime ? "yyyy-MM-dd'T'00:00:00" : "yyyy-MM-dd'T'HH:mm:ss");
 
   const rules = master.recurrenceRules || [];
-  const anchor = master.due ? parseISO(master.due) : null;
+  // The series repeats from its start (tiger-iac#1807).
+  const anchorValue = master.start || master.due;
+  const anchor = anchorValue ? parseISO(anchorValue) : null;
   const count = rules[0]?.count;
   const remainingCount = count != null && anchor
     ? count - generateDates(anchor, rules[0], anchor, untilDate).length
@@ -107,7 +133,7 @@ function changedFields(updates: Partial<CalendarTask>, occurrence: CalendarTask)
  */
 function carryOverrides(
   overrides: TaskOverrides,
-  shiftMs: number,
+  shift: LocalShift,
   newSeries: Pick<CalendarTask, "showWithoutTime">,
   editedFields: string[],
 ): TaskOverrides {
@@ -117,7 +143,7 @@ function carryOverrides(
       Object.entries(entry).filter(([field]) => field !== "updated" && !editedFields.includes(field)),
     );
     if (Object.keys(rest).length === 0) continue;
-    carried[taskRecurrenceId(newSeries, new Date(parseISO(key).getTime() + shiftMs))] = rest;
+    carried[taskRecurrenceId(newSeries, parseISO(applyLocalShift(key, shift)))] = rest;
   }
   return carried;
 }
@@ -143,8 +169,10 @@ export async function executeTaskScopeAction(
         const changes = changedFields(updates, task);
         if (changes.due && task.due && master.due) {
           // Moving one occurrence moves the series by the same amount, from its own start.
-          const shiftMs = parseISO(changes.due).getTime() - parseISO(task.due).getTime();
-          changes.due = format(new Date(parseISO(master.due).getTime() + shiftMs), "yyyy-MM-dd'T'HH:mm:ss");
+          const shift = localShift(task.due, changes.due);
+          changes.due = applyLocalShift(master.due, shift);
+          // The rule repeats from the start: it moves with the due date (tiger-iac#1807).
+          if (master.start && !changes.start) changes.start = applyLocalShift(master.start, shift);
         }
         if (Object.keys(changes).length > 0) await taskStore.updateTask(client, master.id, changes);
         break;
@@ -157,17 +185,21 @@ export async function executeTaskScopeAction(
         const newShowWithoutTime = changes.showWithoutTime ?? master.showWithoutTime;
 
         if (remainingCount == null || remainingCount > 0) {
-          const shiftMs = newDue && occurrenceDate ? parseISO(newDue).getTime() - parseISO(occurrenceDate).getTime() : 0;
+          // Later overrides move as far as this occurrence's due date does.
+          const movedFrom = task.due || occurrenceDate;
+          const shift = newDue && movedFrom ? localShift(movedFrom, newDue) : NO_SHIFT;
           const carried = split
-            ? carryOverrides(split.laterOverrides, shiftMs, { showWithoutTime: newShowWithoutTime }, Object.keys(changes))
+            ? carryOverrides(split.laterOverrides, shift, { showWithoutTime: newShowWithoutTime }, Object.keys(changes))
             : {};
+          // Everything the series has, reminders and categories included
+          // (tiger-iac#1808), except what identifies the old one.
+          const kept = Object.fromEntries(
+            Object.entries(master).filter(([key]) => !SERIES_COPY_DROPPED_KEYS.has(key)),
+          ) as Partial<CalendarTask>;
           const newTaskData: Partial<CalendarTask> = {
-            title: master.title,
-            description: master.description,
-            priority: master.priority,
+            ...kept,
+            ...startKeepingOffset(master, newDue),
             calendarIds: { ...master.calendarIds },
-            showWithoutTime: master.showWithoutTime,
-            timeZone: master.timeZone,
             progress: "needs-action",
             recurrenceRules: remainingCount != null
               ? (master.recurrenceRules || []).map((r) => ({ ...r, count: remainingCount }))
