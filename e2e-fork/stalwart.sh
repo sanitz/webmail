@@ -7,9 +7,29 @@
 #
 #   e2e-fork/stalwart.sh up     build, start, wait until JMAP answers
 #   e2e-fork/stalwart.sh down   stop and remove
+#   e2e-fork/stalwart.sh image  the image `up` runs (see resolve_image)
 set -euo pipefail
 
-STALWART_IMAGE="${STALWART_IMAGE:-docker.io/stalwartlabs/stalwart:v1.1.0@sha256:0aacd114054f56c34e98063140e2102a04dc0bcb4933ff08925cf8e9938b0d16}"
+# Fallback only: the image production pins is read from a tiger-iac checkout
+# (TIGER_IAC_DIR, default ~/tiger-iac), so a Stalwart update there reaches
+# the specs without a second edit here (tiger-iac#1820).
+DEFAULT_STALWART_IMAGE="docker.io/stalwartlabs/stalwart:v1.1.0@sha256:0aacd114054f56c34e98063140e2102a04dc0bcb4933ff08925cf8e9938b0d16"
+
+# The image to run: STALWART_IMAGE if set, else production's pin, else the
+# built-in default with a warning that it may lag production.
+resolve_image() {
+  if [ -n "${STALWART_IMAGE:-}" ]; then echo "${STALWART_IMAGE}"; return; fi
+  local iac="${TIGER_IAC_DIR:-${HOME}/tiger-iac}" pinned
+  pinned="$(sed -n 's/^stalwart_image: *//p' "${iac}/roles/stalwart/defaults/main.yml" 2>/dev/null | head -1 || true)"
+  if [ -n "${pinned}" ]; then
+    [ "${pinned}" = "${DEFAULT_STALWART_IMAGE}" ] \
+      || echo "note: production pins ${pinned}; the built-in default here is older, update it" >&2
+    echo "${pinned}"
+  else
+    echo "WARNING: no tiger-iac checkout at ${iac}: running the built-in ${DEFAULT_STALWART_IMAGE}, which may lag production" >&2
+    echo "${DEFAULT_STALWART_IMAGE}"
+  fi
+}
 # The stalwart-cli production uses (tiger-iac stalwart_cli_image); upstream's
 # default 1.0.6 cannot read the schema of server 1.0.3.
 export STALWART_CLI_VERSION="${STALWART_CLI_VERSION:-1.0.14}"
@@ -20,6 +40,9 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 CTX="${HERE}/../integration/stalwart"
 
 up() {
+  local image
+  image="$(resolve_image)"
+  echo "stalwart image: ${image}" >&2
   "${CTX}/prepare-stalwart-cli.sh" >&2
   # Upstream's plans target 0.16; 1.0.3 renamed some fields. A staged copy
   # keeps integration/ untouched for rebases.
@@ -29,7 +52,7 @@ up() {
   # The specs need JMAP and CalDAV only: no SMTP/IMAP listeners, whose
   # schema 1.0.3 changed too.
   grep -v -E '"object":"(NetworkListener|MtaStageAuth|Imap)"' "${CTX}/plan-accounts.ndjson.tpl" > "${stage}/plan-accounts.ndjson.tpl"
-  podman build -q --format docker --build-arg "STALWART_IMAGE=${STALWART_IMAGE}" -t "${TAG}" "${stage}" >/dev/null
+  podman build -q --format docker --build-arg "STALWART_IMAGE=${image}" -t "${TAG}" "${stage}" >/dev/null
   podman rm -f "${NAME}" >/dev/null 2>&1 || true
   podman run -d --name "${NAME}" -p "127.0.0.1:${PORT}:8080" \
     -e STALWART_RECOVERY_ADMIN=admin:bootstrap-secret \
@@ -56,5 +79,6 @@ down() { podman rm -f "${NAME}" >/dev/null 2>&1 || true; }
 case "${1:-}" in
   up) up ;;
   down) down ;;
-  *) echo "usage: $0 up|down" >&2; exit 2 ;;
+  image) resolve_image ;;
+  *) echo "usage: $0 up|down|image" >&2; exit 2 ;;
 esac

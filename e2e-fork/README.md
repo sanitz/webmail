@@ -9,7 +9,7 @@ e2e-fork/run.sh 20-task-series  # one spec
 
 | Part | What |
 | --- | --- |
-| `stalwart.sh` | Throwaway Stalwart, rootless podman, on the image production runs (digest from tiger-iac `stalwart_image`) with upstream's bootstrap from `integration/stalwart`. No volume: `down` leaves nothing. |
+| `stalwart.sh` | Throwaway Stalwart, rootless podman, on the image production runs (read from a tiger-iac checkout, `TIGER_IAC_DIR`, default `~/tiger-iac`; without one, a built-in digest and a warning; `stalwart.sh image` shows the choice) with upstream's bootstrap from `integration/stalwart`. No volume: `down` leaves nothing. |
 | `run.sh` | Stalwart up, the app in `next dev` on port 3100, Playwright in `mcr.microsoft.com/playwright` (browsers and their system libraries inside), teardown. Output and app data in `~/.cache/bulwark-e2e`, never in the repo: `next dev` reloads on every write there. |
 | `helpers.ts` | What a phone does over CalDAV, and reading back what Stalwart stored (JMAP, iCalendar). |
 | `ui.ts` | Driving the calendar. |
