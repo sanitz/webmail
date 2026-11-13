@@ -158,3 +158,40 @@ describe('groupTasksByDueDay recurrence expansion', () => {
     expect(moved?.title).toBe('Lauf mit Hund 🐕');
   });
 });
+
+// RFC 5545 repeats a task from DTSTART (JSCalendar `start`); each occurrence
+// is due at the same distance after its start (tiger-iac#1807).
+describe('groupTasksByDueDay anchors a series at its start', () => {
+  const range = { start: new Date(2026, 10, 16), end: new Date(2026, 10, 30) };
+
+  it('a phone task starting Monday, due Wednesday, repeating on Mondays is due on Wednesdays', () => {
+    const task = makeTask('weekly-mo', {
+      start: '2026-11-16T00:00:00',
+      due: '2026-11-18T00:00:00',
+      recurrenceRules: [{ ...createRecurrenceRule('weekly'), byDay: [{ day: 'mo' as const }] }],
+    });
+    const map = groupTasksByDueDay([task], range);
+    expect([...map.keys()].sort()).toEqual(['2026-11-18', '2026-11-25']);
+    // The occurrence is keyed by its start, as Stalwart's RECURRENCE-ID is.
+    expect(map.get('2026-11-25')![0].recurrenceId).toBe('2026-11-23T00:00:00');
+  });
+
+  it('a series whose start equals its due date is unchanged', () => {
+    const task = makeTask('weekly-same', {
+      start: '2026-11-17T00:00:00',
+      due: '2026-11-17T00:00:00',
+      recurrenceRules: [createRecurrenceRule('weekly')],
+    });
+    const map = groupTasksByDueDay([task], range);
+    expect([...map.keys()].sort()).toEqual(['2026-11-17', '2026-11-24']);
+    expect(map.get('2026-11-24')![0].recurrenceId).toBe('2026-11-24T00:00:00');
+  });
+});
+
+describe('occurrenceRecurrenceId of a series itself (tiger-iac#1807)', () => {
+  it('is its start, the key Stalwart gives the first occurrence', async () => {
+    const { occurrenceRecurrenceId } = await import('../calendar-tasks');
+    const task = makeTask('series', { start: '2026-11-16T00:00:00', due: '2026-11-18T00:00:00', recurrenceRules: [createRecurrenceRule('weekly')] });
+    expect(occurrenceRecurrenceId(task)).toBe('2026-11-16T00:00:00');
+  });
+});

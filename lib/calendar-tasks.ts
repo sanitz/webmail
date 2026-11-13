@@ -51,6 +51,31 @@ export function shiftLocal(value: Date, from: Date, to: Date): Date {
   return new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(minutes / 60), minutes % 60, value.getSeconds());
 }
 
+/**
+ * A move between two LocalDateTimes as the wall clock sees it: whole days
+ * plus minutes of the day (used by fork scope splitting, tiger-iac#1810).
+ */
+export interface LocalShift { days: number; minutes: number }
+
+const minuteOfDay = (d: Date) => d.getHours() * 60 + d.getMinutes();
+
+export function localShift(from: string, to: string): LocalShift {
+  const a = parseISO(from);
+  const b = parseISO(to);
+  return { days: differenceInCalendarDays(b, a), minutes: minuteOfDay(b) - minuteOfDay(a) };
+}
+
+export function applyLocalShift(value: string, shift: LocalShift): string {
+  const d = parseISO(value);
+  const total = minuteOfDay(d) + shift.minutes;
+  const carry = Math.floor(total / 1440);
+  const minutes = total - carry * 1440;
+  // Noon: no DST switch moves it to another day.
+  const day = addDays(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12), shift.days + carry);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${format(day, "yyyy-MM-dd")}T${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}:${pad(d.getSeconds())}`;
+}
+
 type TaskOverride = Partial<CalendarTask> & { excluded?: boolean };
 
 /**
@@ -78,6 +103,7 @@ function addOccurrence(
   recurrenceId: string,
   override: TaskOverride | undefined,
 ): void {
+  // `date` is the occurrence's due date; its key is its start.
   const key = format(date, "yyyy-MM-dd");
   const occTask: CalendarTask = {
     ...task,
@@ -102,9 +128,11 @@ export function taskSeriesId(task: CalendarTask): string {
 /** recurrenceOverrides key of an occurrence, or of the task's own due date when it is not an expanded occurrence. */
 export function occurrenceRecurrenceId(task: CalendarTask): string | null {
   if (task.recurrenceId) return task.recurrenceId;
-  if (!task.due) return null;
-  const due = parseISO(task.due);
-  return Number.isNaN(due.getTime()) ? null : taskRecurrenceId(task, due);
+  // The first occurrence is keyed by the series' start (RECURRENCE-ID = DTSTART).
+  const anchor = task.start || task.due;
+  if (!anchor) return null;
+  const date = parseISO(anchor);
+  return Number.isNaN(date.getTime()) ? null : taskRecurrenceId(task, date);
 }
 
 /**
