@@ -318,4 +318,35 @@ describe('task-store updateTask with override patch paths', () => {
     expect(task.recurrenceOverrides).toEqual({ '2026-10-07T09:00:00': { title: 'early' } });
     expect(() => groupTasksByDueDay([task], { start: new Date('2026-10-01'), end: new Date('2026-10-31') })).not.toThrow();
   });
+
+  it('refreshes master before toggling an occurrence so a concurrent server override is preserved (#1813)', async () => {
+    const localMaster = makeTask({
+      id: 't-concurrent',
+      due: '2026-10-07T09:00:00',
+      showWithoutTime: false,
+      recurrenceRules: [createRecurrenceRule('weekly')],
+    });
+    const serverMaster = makeTask({
+      ...localMaster,
+      recurrenceOverrides: { '2026-10-14T09:00:00': { progress: 'completed' } },
+    });
+    const occurrence = { ...localMaster, id: 't-concurrent::2026-10-07T09:00:00', seriesId: 't-concurrent', recurrenceId: '2026-10-07T09:00:00' };
+    useTaskStore.setState({ tasks: [localMaster] });
+
+    const client = {
+      getCalendarTask: vi.fn().mockResolvedValue(serverMaster),
+      updateCalendarTask: vi.fn().mockResolvedValue('t-concurrent'),
+    } as Partial<IJMAPClient>;
+
+    await useTaskStore.getState().toggleTaskComplete(client as IJMAPClient, occurrence);
+
+    expect(client.getCalendarTask).toHaveBeenCalledWith('t-concurrent');
+    expect(client.updateCalendarTask).toHaveBeenCalledWith('t-concurrent', {
+      'recurrenceOverrides/2026-10-07T09:00:00': { progress: 'completed' },
+    });
+    expect(useTaskStore.getState().tasks[0].recurrenceOverrides).toEqual({
+      '2026-10-14T09:00:00': { progress: 'completed' },
+      '2026-10-07T09:00:00': { progress: 'completed' },
+    });
+  });
 });

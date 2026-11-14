@@ -157,7 +157,11 @@ export async function executeTaskScopeAction(
   const { task } = action;
   // seriesId, not originalId: a shared task's originalId is its id in the sharer's account.
   const masterId = taskSeriesId(task);
-  const master = taskStore.tasks.find((t) => t.id === masterId) || task;
+  const localMaster = taskStore.tasks.find((t) => t.id === masterId) || task;
+  // Read-before-write for occurrence overrides and series splits (#1813).
+  const master = scope === "all"
+    ? localMaster
+    : ((await client.getCalendarTask?.(masterId)) ?? localMaster);
   const occurrenceDate = occurrenceRecurrenceId(task) ?? master.due;
 
   if (action.type === "edit_task") {

@@ -255,15 +255,19 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     // seriesId; a `:` in the id is no sign of one, other logins' and shared
     // accounts' ids have it. originalId is a shared task's id in its account.
     const masterId = taskSeriesId(task);
-    const master = get().tasks.find((t) => t.id === masterId) || task;
+    const localMaster = get().tasks.find((t) => t.id === masterId) || task;
     const target = splitLoginId(masterId);
+    const targetClient = clientOf(client, target.localAccountId);
     // Ticking off a series completes one occurrence, the first still open,
     // wherever it is ticked; the series keeps its dates, so the done date
     // stays done in the calendar (tiger-iac#1812).
-    const occurrence = task.recurrenceId && task.seriesId ? task : nextOpenOccurrence(master);
+    const occurrence = task.recurrenceId && task.seriesId ? task : nextOpenOccurrence(localMaster);
     const recurrenceId = occurrence ? occurrenceRecurrenceId(occurrence) : null;
 
     if (occurrence && recurrenceId) {
+      // Read-before-write: fetch fresh master so concurrent server overrides are not wiped (#1813).
+      const freshMaster = await targetClient.getCalendarTask?.(target.raw);
+      const master = freshMaster ? (target.localAccountId ? prefixTask(freshMaster, target.localAccountId) : freshMaster) : localMaster;
       const newProgress: CalendarTask['progress'] = occurrence.progress === 'completed' ? 'needs-action' : 'completed';
       const overrideEntry: Record<string, unknown> = {
         ...(findTaskOverride(master.recurrenceOverrides, recurrenceId) || {}),
@@ -281,11 +285,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         ...(seriesProgress ? { progress: seriesProgress } : {}),
       };
 
-      await clientOf(client, target.localAccountId).updateCalendarTask(target.raw, patch);
+      await targetClient.updateCalendarTask(target.raw, patch);
       set({
         tasks: get().tasks.map((t) => t.id !== masterId ? t : {
-          ...t,
-          recurrenceOverrides: { ...(t.recurrenceOverrides || {}), [recurrenceId]: overrideEntry },
+          ...master,
+          recurrenceOverrides: overrides,
           ...(seriesProgress ? { progress: seriesProgress } : {}),
           updated: new Date().toISOString(),
         }),
@@ -295,8 +299,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       return;
     }
 
-    const updates: Partial<CalendarTask> = { progress: master.progress === 'completed' ? 'needs-action' : 'completed' };
-    await clientOf(client, target.localAccountId).updateCalendarTask(target.raw, updates);
+    const updates: Partial<CalendarTask> = { progress: localMaster.progress === 'completed' ? 'needs-action' : 'completed' };
+    await targetClient.updateCalendarTask(target.raw, updates);
     set({
       tasks: get().tasks.map(t => t.id === masterId ? { ...t, ...updates, updated: new Date().toISOString() } : t),
     });

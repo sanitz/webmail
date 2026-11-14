@@ -490,6 +490,71 @@ describe('splitting a task series with "this_and_future" (tiger-iac#1323)', () =
     expect(store.updateTask).not.toHaveBeenCalled();
   });
 
+  it('refreshes master before writing a single-occurrence override so concurrent server overrides stay intact (#1813)', async () => {
+    const localMaster = makeTask({
+      id: 'm-conc',
+      title: 'Weekly',
+      due: '2026-10-01T09:00:00',
+      showWithoutTime: false,
+      recurrenceRules: [createRecurrenceRule('weekly')],
+    });
+    const serverMaster = makeTask({
+      ...localMaster,
+      recurrenceOverrides: { '2026-10-08T09:00:00': { progress: 'completed' } },
+    });
+    const { store } = serverLikeStore([localMaster]);
+    const concClient = { ...client, getCalendarTask: vi.fn().mockResolvedValue(serverMaster) } as IJMAPClient;
+
+    await executeTaskScopeAction(
+      concClient,
+      store,
+      { type: 'edit_task', task: occurrenceOf(localMaster, '2026-10-15T09:00:00'), updates: { title: 'Edited' } },
+      'this',
+    );
+
+    expect(concClient.getCalendarTask).toHaveBeenCalledWith('m-conc');
+    expect(store.updateTask).toHaveBeenCalledWith(concClient, 'm-conc', {
+      'recurrenceOverrides/2026-10-15T09:00:00': { title: 'Edited' },
+    });
+  });
+
+  it('refreshes master before splitting this_and_future so concurrent later overrides are carried (#1813)', async () => {
+    const localMaster = makeTask({
+      id: 'm-split-conc',
+      title: 'Weekly',
+      due: '2026-10-01T09:00:00',
+      showWithoutTime: false,
+      recurrenceRules: [createRecurrenceRule('weekly')],
+    });
+    const serverMaster = makeTask({
+      ...localMaster,
+      recurrenceOverrides: { '2026-10-22T09:00:00': { progress: 'completed' } },
+    });
+    const { store } = serverLikeStore([localMaster]);
+    const concClient = { ...client, getCalendarTask: vi.fn().mockResolvedValue(serverMaster) } as IJMAPClient;
+
+    await executeTaskScopeAction(
+      concClient,
+      store,
+      { type: 'edit_task', task: occurrenceOf(localMaster, '2026-10-15T09:00:00'), updates: { title: 'New Series' } },
+      'this_and_future',
+    );
+
+    expect(concClient.getCalendarTask).toHaveBeenCalledWith('m-split-conc');
+    expect(store.createTask).toHaveBeenCalledWith(
+      concClient,
+      expect.objectContaining({
+        title: 'New Series',
+        recurrenceOverrides: { '2026-10-22T09:00:00': { progress: 'completed' } },
+      }),
+    );
+    expect(store.updateTask).toHaveBeenCalledWith(
+      concClient,
+      'm-split-conc',
+      expect.objectContaining({ 'recurrenceOverrides/2026-10-22T09:00:00': null }),
+    );
+  });
+
   function makeCountedMaster(): CalendarTask {
     return makeTask({ id: 'm', title: 'C', due: '2026-10-01T09:00:00', recurrenceRules: [createRecurrenceRule('weekly', { count: 4 })] });
   }

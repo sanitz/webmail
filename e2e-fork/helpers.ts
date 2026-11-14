@@ -92,6 +92,13 @@ export async function tasksOnServer(account: TestAccount, properties: string[]):
   return ((result.list ?? []) as Record<string, unknown>[]).filter((item) => item['@type'] === 'Task');
 }
 
+/** CalendarEvent/set patch on one task from outside Bulwark (#1813). */
+export async function patchTaskOverJmap(account: TestAccount, id: string, patch: Record<string, unknown>): Promise<void> {
+  const accountId = await calendarsAccountId(account);
+  const result = await calendarsCall(account, 'CalendarEvent/set', { accountId, update: { [id]: patch } });
+  if (!(id in ((result.updated ?? {}) as Record<string, unknown>))) throw new Error(`patch ${id}: ${JSON.stringify(result)}`);
+}
+
 /** The owner shares the calendar of that name with the grantee, to read and write. */
 export async function shareCalendar(owner: TestAccount, name: string, grantee: TestAccount): Promise<void> {
   const accountId = await calendarsAccountId(owner);

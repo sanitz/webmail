@@ -10848,6 +10848,18 @@ export class JMAPClient implements IJMAPClient {
     return tasks;
   }
 
+  /** One task with its recurrence overrides, or null when the server has no such id (#1813). */
+  async getCalendarTask(taskId: string, targetAccountId?: string): Promise<CalendarTask | null> {
+    const source = targetAccountId ? { accountId: targetAccountId, id: taskId } : this.splitCalendarObjectId(taskId);
+    const [obj] = await this.withCalendarTimeZone((timeZone) =>
+      this.fetchCalendarEventsById(source.accountId, [source.id], CALENDAR_TASK_PROPERTIES, { withOverrides: true, timeZone }));
+    if (!obj) return null;
+    const normalized = normalizeCalendarTask({ ...obj, '@type': 'Task' as const } as CalendarTask);
+    return source.accountId === this.getCalendarsAccountId()
+      ? normalized
+      : this.namespaceCalendarTask(normalized, source.accountId);
+  }
+
   private async getAccountCalendarTasks(calendarIds: string[] | undefined, accountId: string): Promise<CalendarTask[]> {
     debug.group('CalendarTask/fetch', 'tasks');
     debug.log('tasks', 'CalendarTask/fetch start', { accountId, calendarIds: calendarIds || 'all' });

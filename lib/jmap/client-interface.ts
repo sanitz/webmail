@@ -703,6 +703,7 @@ export interface IJMAPClient {
 
   // ── Calendar Tasks ────────────────────────────────────────────
   getCalendarTasks(calendarIds?: string[], targetAccountId?: string): Promise<CalendarTask[]>;
+  getCalendarTask?(taskId: string, targetAccountId?: string): Promise<CalendarTask | null>;
   createCalendarTask(task: Partial<CalendarTask>, targetAccountId?: string): Promise<CalendarTask>;
   /** Resolves to the task's id afterwards; it changes when the task moves to another account. */
   updateCalendarTask(taskId: string, updates: Partial<CalendarTask>, targetAccountId?: string): Promise<string>;
