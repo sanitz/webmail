@@ -24,9 +24,15 @@ and in the iCalendar, occurrences on the grid), ticking off one occurrence, the
 three scopes and a split without duplicates; a phone's task that starts before
 its due made to repeat in the form (the start stays); ticking off a task in a calendar
 shared with the login and a series of a second login (scope dialog).
+Sign-in over SSO through Stalwart's login page (tiger-iac#1922): with the short
+login name and a password it lands on the full address, with a passkey (virtual
+authenticator, answered by the page's autofill request) without a password.
+stalwart.sh registers the webmail's OAuth client as production declares it and
+pins Stalwart's public URL, so the passkey's RP-ID is `localhost`.
 
 Not covered: mail, contacts, files, other upstream features; looks; real
-CalDAV clients; production (Caddy, OIDC, CORS); editing in shared calendars
+CalDAV clients; production (Caddy, CORS, the real host as RP-ID); the "Sign in with a passkey"
+button (the autofill request answers first under a virtual authenticator); editing in shared calendars
 and second logins beyond ticking off; phone layout, other browsers and time
 zones. A task with more than one RRULE: Stalwart shows only the last one
 over JMAP and drops the others on every JMAP update, whatever the client

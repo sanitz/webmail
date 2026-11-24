@@ -39,6 +39,12 @@ echo "== app on http://localhost:${PORT} (log ${DEV_LOG})" >&2
   JMAP_SERVER_URL="http://localhost:${JMAP_PORT}" \
   SESSION_SECRET=e2e-not-a-real-secret-at-least-32-chars \
   STALWART_FEATURES=true \
+  OAUTH_ENABLED=true \
+  OAUTH_CLIENT_ID=bulwark-webmail \
+  OAUTH_CLIENT_SECRET=e2e-oauth-client-secret-not-real \
+  OAUTH_ISSUER_URL="http://localhost:${JMAP_PORT}" \
+  OAUTH_EXTRA_SCOPES="urn:stalwart:oauth:scope:security urn:stalwart:oauth:scope:settings" \
+  OAUTH_POST_LOGOUT_REDIRECT_URI="http://localhost:${PORT}/login" \
   SETTINGS_DATA_DIR="${OUT}/data/settings" \
   ADMIN_DATA_DIR="${OUT}/data/admin" \
   TELEMETRY_DATA_DIR="${OUT}/data/telemetry" \
@@ -54,7 +60,7 @@ done
 # A browser that hits a freshly started `next dev` sets off a loop of
 # recompiles and reloads; one that comes once it is quiet does not. So: compile
 # the pages once, then wait for 20 s without a new compile (at most 3 min).
-for page in / /login /calendar; do curl -fsS -o /dev/null --max-time 240 "http://localhost:${PORT}${page}" || true; done
+for page in / /login /calendar /api/auth/oauth/metadata; do curl -fsS -o /dev/null --max-time 240 "http://localhost:${PORT}${page}" || true; done
 quiet=0; last=-1
 for _ in $(seq 1 36); do
   now=$(grep -c 'Compiled' "${DEV_LOG}" || true)

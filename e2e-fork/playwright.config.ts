@@ -46,6 +46,13 @@ export default defineConfig({
       JMAP_SERVER_URL: `http://localhost:${JMAP_PORT}`,
       SESSION_SECRET: 'e2e-not-a-real-secret-at-least-32-chars',
       STALWART_FEATURES: 'true',
+      // As run.sh: the SSO client stalwart.sh registers (tiger-iac#1922).
+      OAUTH_ENABLED: 'true',
+      OAUTH_CLIENT_ID: 'bulwark-webmail',
+      OAUTH_CLIENT_SECRET: 'e2e-oauth-client-secret-not-real',
+      OAUTH_ISSUER_URL: `http://localhost:${JMAP_PORT}`,
+      OAUTH_EXTRA_SCOPES: 'urn:stalwart:oauth:scope:security urn:stalwart:oauth:scope:settings',
+      OAUTH_POST_LOGOUT_REDIRECT_URI: `http://localhost:${PORT}/login`,
     },
   },
 });

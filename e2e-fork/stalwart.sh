@@ -30,6 +30,26 @@ resolve_image() {
     echo "${DEFAULT_STALWART_IMAGE}"
   fi
 }
+# Production pins its own platform's digest (amd64). On another host the
+# same release runs as the tag's manifest entry for this architecture, after
+# checking that the pinned digest belongs to that tag (tiger-iac#1922).
+native_image() {
+  local image="$1" repo tag digest arch native
+  case "${image}" in *@sha256:*) ;; *) echo "${image}"; return ;; esac
+  repo="${image%%:*}"; tag="${image#*:}"; tag="${tag%%@*}"; digest="${image##*@}"
+  arch="$(podman info --format '{{.Host.Arch}}')"
+  native="$(podman manifest inspect "${repo}:${tag}" | python3 -c '
+import json, sys
+pinned, arch = sys.argv[1], sys.argv[2]
+entries = json.load(sys.stdin).get("manifests", [])
+if not any(e["digest"] == pinned for e in entries):
+    sys.exit(f"pinned {pinned} is not part of the tag manifest")
+print(next((e["digest"] for e in entries if e.get("platform", {}).get("architecture") == arch), pinned))
+' "${digest}" "${arch}")" || return 1
+  [ "${native}" = "${digest}" ] || echo "note: running ${tag} for ${arch} (${native}); production pins ${digest}" >&2
+  echo "${repo}:${tag}@${native}"
+}
+
 # The stalwart-cli production uses (tiger-iac stalwart_cli_image); upstream's
 # default 1.0.6 cannot read the schema of server 1.0.3.
 export STALWART_CLI_VERSION="${STALWART_CLI_VERSION:-1.0.14}"
@@ -39,9 +59,23 @@ PORT="${E2E_JMAP_PORT:-8025}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 CTX="${HERE}/../integration/stalwart"
 
+# OAuth client for the app on E2E_WEB_PORT; secret shared with run.sh.
+E2E_OAUTH_CLIENT_ID=bulwark-webmail
+E2E_OAUTH_CLIENT_SECRET=e2e-oauth-client-secret-not-real
+WEB_PORT="${E2E_WEB_PORT:-3100}"
+
+oauth_client() {
+  local web="http://localhost:${WEB_PORT}" uris="" loc
+  for loc in $(ls "${HERE}/../locales"); do
+    uris="${uris}${uris:+,}\"${web}/${loc}/auth/callback\":true"
+  done
+  printf '{"@type":"create","object":"OAuthClient","value":{"webmail":{"clientId":"%s","description":"Bulwark Webmail (E2E)","secret":"%s","redirectUris":{%s},"postLogoutRedirectUris":{"%s/login":true},"scopes":{"mail":true,"contacts":true,"calendars":true,"files":true,"security":true,"settings":true}}}}\n' \
+    "${E2E_OAUTH_CLIENT_ID}" "${E2E_OAUTH_CLIENT_SECRET}" "${uris}" "${web}"
+}
+
 up() {
   local image
-  image="$(resolve_image)"
+  image="$(native_image "$(resolve_image)")"
   echo "stalwart image: ${image}" >&2
   "${CTX}/prepare-stalwart-cli.sh" >&2
   # Upstream's plans target 0.16; 1.0.3 renamed some fields. A staged copy
@@ -52,11 +86,16 @@ up() {
   # The specs need JMAP and CalDAV only: no SMTP/IMAP listeners, whose
   # schema 1.0.3 changed too.
   grep -v -E '"object":"(NetworkListener|MtaStageAuth|Imap)"' "${CTX}/plan-accounts.ndjson.tpl" > "${stage}/plan-accounts.ndjson.tpl"
+  # The webmail's SSO client (tiger-iac#1922), as production's Stalwart plan
+  # declares it: one callback per locale, the login page after sign-out, the
+  # data scopes plus the account's security and settings.
+  oauth_client >> "${stage}/plan-accounts.ndjson.tpl"
   podman build -q --format docker --build-arg "STALWART_IMAGE=${image}" -t "${TAG}" "${stage}" >/dev/null
   podman rm -f "${NAME}" >/dev/null 2>&1 || true
   podman run -d --name "${NAME}" -p "127.0.0.1:${PORT}:8080" \
     -e STALWART_RECOVERY_ADMIN=admin:bootstrap-secret \
     -e TEST_ACCOUNT_PASSWORD=test-pass-123 \
+    -e STALWART_PUBLIC_URL="http://localhost:${PORT}" \
     "${TAG}" >/dev/null
   for _ in $(seq 1 90); do
     [ "$(podman inspect -f '{{.State.Running}}' "${NAME}" 2>/dev/null)" = true ] || break
@@ -80,5 +119,6 @@ case "${1:-}" in
   up) up ;;
   down) down ;;
   image) resolve_image ;;
+  oauth-client) oauth_client ;;
   *) echo "usage: $0 up|down|image" >&2; exit 2 ;;
 esac
