@@ -276,15 +276,17 @@ export function TaskListView({
     onToggleComplete(task);
   }, [onToggleComplete]);
 
+  const rawTask = useCallback((task: CalendarTask) => tasks.find((x) => x.id === task.id) ?? task, [tasks]);
+
   const { contextMenu, openContextMenu, closeContextMenu, menuRef } = useContextMenu<CalendarTask>();
-  const menuTask = contextMenu.data ? tasks.find((x) => x.id === contextMenu.data!.id) ?? contextMenu.data : null;
+  const menuTask = contextMenu.data ? rawTask(contextMenu.data) : null;
 
   // Del on a task (its row has the focus) deletes it, as in Mail and Contacts.
   const handleRowKeyDown = (e: React.KeyboardEvent, task: CalendarTask) => {
     if (e.key !== "Delete" || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || !onDeleteTask) return;
     e.preventDefault();
     e.stopPropagation();
-    onDeleteTask(task);
+    onDeleteTask(rawTask(task));
   };
 
   if (filteredTasks.length === 0) {
