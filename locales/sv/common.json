@@ -5392,6 +5392,7 @@
       "task_updated": "Uppgift uppdaterad",
       "task_save_error": "Det gick inte att spara uppgiften",
       "task_update_error": "Det gick inte att uppdatera uppgiften",
+      "task_error": "Det gick inte att spara uppgiften",
       "calendar_created": "Kalender skapad",
       "calendar_deleted": "Kalender borttagen",
       "event_move_error": "Det gick inte att flytta händelsen",
